@@ -1,59 +1,29 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Match, TeamStanding, MatchResult, Team } from "@/types/game";
-import { teams } from "@/data/teams";
+import { teams as defaultTeams } from "@/data/teams";
+
+const STORAGE_KEY = "campeonato-chileno-2026";
+
+interface SavedGameState {
+  matches: Match[];
+  standings: Map<string, TeamStanding>;
+  teamLevels: Record<string, 1 | 2 | 3 | 4>;
+  savedAt: string;
+}
 
 // Generate round-robin fixture (ida y vuelta)
-const generateFixture = (): Match[] => {
+const generateFixture = (teamList: Team[]): Match[] => {
   const matches: Match[] = [];
-  const teamIds = teams.map(t => t.id);
+  const teamIds = teamList.map(t => t.id);
   const n = teamIds.length;
   
-  // Round-robin algorithm
-  const rounds: string[][] = [];
-  const teamList = [...teamIds];
+  const numRounds = n - 1;
+  const half = n / 2;
   
-  // If odd number of teams, add a "bye"
-  if (n % 2 !== 0) {
-    teamList.push("BYE");
-  }
-  
-  const numTeams = teamList.length;
-  const numRounds = numTeams - 1;
-  const half = numTeams / 2;
-  
-  const teamIndices = teamList.map((_, i) => i).slice(1);
-  
-  for (let round = 0; round < numRounds; round++) {
-    const roundMatches: [string, string][] = [];
-    
-    const newIndices = [0, ...teamIndices];
-    
-    for (let i = 0; i < half; i++) {
-      const home = newIndices[i];
-      const away = newIndices[numTeams - 1 - i];
-      
-      if (teamList[home] !== "BYE" && teamList[away] !== "BYE") {
-        // Alternate home/away by round
-        if (round % 2 === 0) {
-          roundMatches.push([teamList[home], teamList[away]]);
-        } else {
-          roundMatches.push([teamList[away], teamList[home]]);
-        }
-      }
-    }
-    
-    rounds.push(roundMatches.flat());
-    
-    // Rotate
-    teamIndices.push(teamIndices.shift()!);
-  }
-  
-  // Create first leg matches (ida)
   let matchId = 1;
+  
   for (let matchday = 0; matchday < numRounds; matchday++) {
-    const roundTeams = [];
-    const teamList2 = [...teamIds];
-    const indices = teamList2.map((_, i) => i).slice(1);
+    const indices = teamIds.map((_, i) => i).slice(1);
     
     for (let r = 0; r < matchday; r++) {
       indices.push(indices.shift()!);
@@ -100,10 +70,10 @@ const generateFixture = (): Match[] => {
 };
 
 // Initialize standings
-const initializeStandings = (): Map<string, TeamStanding> => {
+const initializeStandings = (teamList: Team[]): Map<string, TeamStanding> => {
   const standings = new Map<string, TeamStanding>();
   
-  for (const team of teams) {
+  for (const team of teamList) {
     standings.set(team.id, {
       teamId: team.id,
       played: 0,
@@ -120,10 +90,44 @@ const initializeStandings = (): Map<string, TeamStanding> => {
   return standings;
 };
 
+// Get default team levels
+const getDefaultTeamLevels = (): Record<string, 1 | 2 | 3 | 4> => {
+  const levels: Record<string, 1 | 2 | 3 | 4> = {};
+  for (const team of defaultTeams) {
+    levels[team.id] = team.level;
+  }
+  return levels;
+};
+
 export const useGameState = () => {
-  const [matches, setMatches] = useState<Match[]>(() => generateFixture());
-  const [standings, setStandings] = useState<Map<string, TeamStanding>>(() => initializeStandings());
-  
+  const [teamLevels, setTeamLevels] = useState<Record<string, 1 | 2 | 3 | 4>>(() => getDefaultTeamLevels());
+  const [matches, setMatches] = useState<Match[]>(() => generateFixture(defaultTeams));
+  const [standings, setStandings] = useState<Map<string, TeamStanding>>(() => initializeStandings(defaultTeams));
+  const [hasSavedGame, setHasSavedGame] = useState(false);
+
+  // Check for saved game on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    setHasSavedGame(!!saved);
+  }, []);
+
+  // Get teams with current levels
+  const teams = useMemo(() => {
+    return defaultTeams.map(team => ({
+      ...team,
+      level: teamLevels[team.id] || team.level,
+    }));
+  }, [teamLevels]);
+
+  // Get team by ID with current level
+  const getTeamById = useCallback((id: string): Team | undefined => {
+    const team = defaultTeams.find(t => t.id === id);
+    if (team) {
+      return { ...team, level: teamLevels[team.id] || team.level };
+    }
+    return undefined;
+  }, [teamLevels]);
+
   // Roll a single die (1-6)
   const rollDie = useCallback((): number => {
     return Math.floor(Math.random() * 6) + 1;
@@ -147,22 +151,13 @@ export const useGameState = () => {
       ? homeGoals > awayGoals 
       : awayGoals > homeGoals;
     
-    // Same level - no second roll
-    if (levelDiff === 0) {
-      return false;
-    }
+    if (levelDiff === 0) return false;
     
-    // 1 level difference
     if (levelDiff === 1) {
-      // Stronger team is away - no advantage
-      if (strongerTeam === "away") {
-        return false;
-      }
-      // Stronger team is home and didn't win - second roll
+      if (strongerTeam === "away") return false;
       return !strongerWins;
     }
     
-    // 2+ level difference - stronger team gets second roll if not winning
     return !strongerWins;
   }, []);
   
@@ -171,10 +166,9 @@ export const useGameState = () => {
     const match = matches.find(m => m.id === matchId);
     if (!match || match.played) return null;
     
-    const homeTeam = teams.find(t => t.id === match.homeTeamId)!;
-    const awayTeam = teams.find(t => t.id === match.awayTeamId)!;
+    const homeTeam = getTeamById(match.homeTeamId)!;
+    const awayTeam = getTeamById(match.awayTeamId)!;
     
-    // First roll
     const firstHomeRoll = rollDie();
     const firstAwayRoll = rollDie();
     const firstHomeGoals = dieToGoals(firstHomeRoll);
@@ -201,7 +195,7 @@ export const useGameState = () => {
       secondRoll,
       requiredSecondRoll: requiresSecond,
     };
-  }, [matches, rollDie, dieToGoals, needsSecondRoll]);
+  }, [matches, getTeamById, rollDie, dieToGoals, needsSecondRoll]);
   
   // Confirm match result
   const confirmMatchResult = useCallback((matchId: string, result: MatchResult) => {
@@ -217,7 +211,6 @@ export const useGameState = () => {
       };
     }));
     
-    // Update standings
     setStandings(prev => {
       const newStandings = new Map(prev);
       const match = matches.find(m => m.id === matchId)!;
@@ -279,17 +272,109 @@ export const useGameState = () => {
   
   // Reset tournament
   const resetTournament = useCallback(() => {
-    setMatches(generateFixture());
-    setStandings(initializeStandings());
+    setMatches(generateFixture(teams));
+    setStandings(initializeStandings(teams));
+  }, [teams]);
+
+  // Update team level
+  const updateTeamLevel = useCallback((teamId: string, level: 1 | 2 | 3 | 4) => {
+    setTeamLevels(prev => ({
+      ...prev,
+      [teamId]: level,
+    }));
+  }, []);
+
+  // Reset team levels to default
+  const resetTeamLevels = useCallback(() => {
+    setTeamLevels(getDefaultTeamLevels());
+  }, []);
+
+  // Save game to localStorage
+  const saveGame = useCallback(() => {
+    const state: SavedGameState = {
+      matches,
+      standings,
+      teamLevels,
+      savedAt: new Date().toISOString(),
+    };
+    
+    // Convert Map to array for JSON serialization
+    const serializable = {
+      ...state,
+      standings: Array.from(standings.entries()),
+    };
+    
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
+    setHasSavedGame(true);
+    return true;
+  }, [matches, standings, teamLevels]);
+
+  // Load game from localStorage
+  const loadGame = useCallback(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return false;
+    
+    try {
+      const parsed = JSON.parse(saved);
+      
+      // Restore matches
+      setMatches(parsed.matches);
+      
+      // Restore standings from array to Map
+      const standingsMap = new Map<string, TeamStanding>(parsed.standings);
+      setStandings(standingsMap);
+      
+      // Restore team levels
+      setTeamLevels(parsed.teamLevels);
+      
+      return true;
+    } catch (e) {
+      console.error("Error loading saved game:", e);
+      return false;
+    }
+  }, []);
+
+  // Delete saved game
+  const deleteSavedGame = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEY);
+    setHasSavedGame(false);
+  }, []);
+
+  // Get saved game info
+  const getSavedGameInfo = useCallback(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return null;
+    
+    try {
+      const parsed = JSON.parse(saved);
+      const playedMatches = parsed.matches.filter((m: Match) => m.played).length;
+      return {
+        savedAt: new Date(parsed.savedAt),
+        playedMatches,
+        totalMatches: parsed.matches.length,
+      };
+    } catch {
+      return null;
+    }
   }, []);
   
   return {
     matches,
     standings: sortedStandings,
+    teams,
+    teamLevels,
+    getTeamById,
     simulateMatch,
     confirmMatchResult,
     getMatchesByMatchday,
     totalMatchdays,
     resetTournament,
+    updateTeamLevel,
+    resetTeamLevels,
+    saveGame,
+    loadGame,
+    deleteSavedGame,
+    hasSavedGame,
+    getSavedGameInfo,
   };
 };

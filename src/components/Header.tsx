@@ -18,12 +18,37 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { TeamConfig } from "./TeamConfig";
+import { SaveLoadGame } from "./SaveLoadGame";
+import { Team, TeamLevel } from "@/types/game";
 
 interface HeaderProps {
   onReset: () => void;
+  teams: Team[];
+  teamLevels: Record<string, TeamLevel>;
+  onUpdateLevel: (teamId: string, level: TeamLevel) => void;
+  onResetLevels: () => void;
+  hasPlayedMatches: boolean;
+  onSave: () => boolean;
+  onLoad: () => boolean;
+  onDeleteSave: () => void;
+  hasSavedGame: boolean;
+  getSavedGameInfo: () => { savedAt: Date; playedMatches: number; totalMatches: number } | null;
 }
 
-export const Header = ({ onReset }: HeaderProps) => {
+export const Header = ({ 
+  onReset,
+  teams,
+  teamLevels,
+  onUpdateLevel,
+  onResetLevels,
+  hasPlayedMatches,
+  onSave,
+  onLoad,
+  onDeleteSave,
+  hasSavedGame,
+  getSavedGameInfo,
+}: HeaderProps) => {
   return (
     <header className="bg-primary text-primary-foreground">
       <div className="container mx-auto px-4 py-6">
@@ -42,7 +67,7 @@ export const Header = ({ onReset }: HeaderProps) => {
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary-foreground/10">
@@ -81,15 +106,32 @@ export const Header = ({ onReset }: HeaderProps) => {
                   <div>
                     <h3 className="font-semibold mb-1">Niveles de Equipos</h3>
                     <ul className="text-muted-foreground space-y-1">
-                      <li><span className="inline-block w-16 text-level-1 font-medium">Nivel 1:</span> U. Chile, Colo Colo, U. Católica</li>
-                      <li><span className="inline-block w-16 text-level-2 font-medium">Nivel 2:</span> Coquimbo, O'Higgins, Palestino</li>
-                      <li><span className="inline-block w-16 text-level-3 font-medium">Nivel 3:</span> Equipos medios</li>
-                      <li><span className="inline-block w-16 text-level-4 font-medium">Nivel 4:</span> Equipos débiles</li>
+                      <li><span className="inline-block w-16 text-level-1 font-medium">Nivel 1:</span> Élite</li>
+                      <li><span className="inline-block w-16 text-level-2 font-medium">Nivel 2:</span> Fuertes</li>
+                      <li><span className="inline-block w-16 text-level-3 font-medium">Nivel 3:</span> Medios</li>
+                      <li><span className="inline-block w-16 text-level-4 font-medium">Nivel 4:</span> Débiles</li>
                     </ul>
                   </div>
                 </div>
               </DialogContent>
             </Dialog>
+
+            <TeamConfig
+              teams={teams}
+              teamLevels={teamLevels}
+              onUpdateLevel={onUpdateLevel}
+              onResetLevels={onResetLevels}
+              onResetTournament={onReset}
+              hasPlayedMatches={hasPlayedMatches}
+            />
+
+            <SaveLoadGame
+              onSave={onSave}
+              onLoad={onLoad}
+              onDelete={onDeleteSave}
+              hasSavedGame={hasSavedGame}
+              getSavedGameInfo={getSavedGameInfo}
+            />
             
             <AlertDialog>
               <AlertDialogTrigger asChild>
