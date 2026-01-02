@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 import { Match, MatchResult, Team } from "@/types/game";
-import { getTeamById, getLevelLabel } from "@/data/teams";
 import { Dice } from "./Dice";
 import { TeamBadge } from "./TeamBadge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { Dices, CheckCircle2, RefreshCw, ArrowRight } from "lucide-react";
+import { Dices, CheckCircle2, RefreshCw } from "lucide-react";
 
 interface MatchSimulatorProps {
   match: Match | null;
+  getTeamById: (id: string) => Team | undefined;
   onSimulate: (matchId: string) => MatchResult | null;
   onConfirm: (matchId: string, result: MatchResult) => void;
   onClose: () => void;
@@ -17,7 +17,7 @@ interface MatchSimulatorProps {
 
 type SimulationPhase = "ready" | "first-roll" | "checking" | "second-roll" | "final";
 
-export const MatchSimulator = ({ match, onSimulate, onConfirm, onClose }: MatchSimulatorProps) => {
+export const MatchSimulator = ({ match, getTeamById, onSimulate, onConfirm, onClose }: MatchSimulatorProps) => {
   const [phase, setPhase] = useState<SimulationPhase>("ready");
   const [result, setResult] = useState<MatchResult | null>(null);
   const [rolling, setRolling] = useState(false);

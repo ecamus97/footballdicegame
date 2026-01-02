@@ -1,5 +1,4 @@
-import { Match } from "@/types/game";
-import { getTeamById } from "@/data/teams";
+import { Match, Team } from "@/types/game";
 import { TeamBadge } from "./TeamBadge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -7,11 +6,12 @@ import { Dices, CheckCircle2 } from "lucide-react";
 
 interface MatchCardProps {
   match: Match;
+  getTeamById: (id: string) => Team | undefined;
   onPlay: (matchId: string) => void;
   compact?: boolean;
 }
 
-export const MatchCard = ({ match, onPlay, compact = false }: MatchCardProps) => {
+export const MatchCard = ({ match, getTeamById, onPlay, compact = false }: MatchCardProps) => {
   const homeTeam = getTeamById(match.homeTeamId)!;
   const awayTeam = getTeamById(match.awayTeamId)!;
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGameState } from "@/hooks/useGameState";
 import { Header } from "@/components/Header";
 import { FixtureView } from "@/components/FixtureView";
@@ -11,12 +11,22 @@ import { Calendar, Trophy } from "lucide-react";
 const Index = () => {
   const { 
     matches, 
-    standings, 
+    standings,
+    teams,
+    teamLevels,
+    getTeamById,
     simulateMatch, 
     confirmMatchResult, 
     getMatchesByMatchday,
     totalMatchdays,
-    resetTournament 
+    resetTournament,
+    updateTeamLevel,
+    resetTeamLevels,
+    saveGame,
+    loadGame,
+    deleteSavedGame,
+    hasSavedGame,
+    getSavedGameInfo,
   } = useGameState();
   
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -31,10 +41,23 @@ const Index = () => {
   const playedMatches = matches.filter(m => m.played).length;
   const totalMatches = matches.length;
   const progress = Math.round((playedMatches / totalMatches) * 100);
+  const hasPlayedMatches = playedMatches > 0;
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onReset={resetTournament} />
+      <Header 
+        onReset={resetTournament}
+        teams={teams}
+        teamLevels={teamLevels}
+        onUpdateLevel={updateTeamLevel}
+        onResetLevels={resetTeamLevels}
+        hasPlayedMatches={hasPlayedMatches}
+        onSave={saveGame}
+        onLoad={loadGame}
+        onDeleteSave={deleteSavedGame}
+        hasSavedGame={hasSavedGame}
+        getSavedGameInfo={getSavedGameInfo}
+      />
       
       {/* Progress Bar */}
       <div className="bg-muted border-b">
@@ -72,11 +95,12 @@ const Index = () => {
                 matches={matches}
                 totalMatchdays={totalMatchdays}
                 getMatchesByMatchday={getMatchesByMatchday}
+                getTeamById={getTeamById}
                 onPlayMatch={handlePlayMatch}
               />
             </TabsContent>
             <TabsContent value="standings">
-              <StandingsTable standings={standings} />
+              <StandingsTable standings={standings} getTeamById={getTeamById} />
             </TabsContent>
           </Tabs>
         </div>
@@ -87,15 +111,17 @@ const Index = () => {
             matches={matches}
             totalMatchdays={totalMatchdays}
             getMatchesByMatchday={getMatchesByMatchday}
+            getTeamById={getTeamById}
             onPlayMatch={handlePlayMatch}
           />
-          <StandingsTable standings={standings} />
+          <StandingsTable standings={standings} getTeamById={getTeamById} />
         </div>
       </main>
       
       {/* Match Simulator Modal */}
       <MatchSimulator
         match={selectedMatch}
+        getTeamById={getTeamById}
         onSimulate={simulateMatch}
         onConfirm={confirmMatchResult}
         onClose={() => setSelectedMatch(null)}

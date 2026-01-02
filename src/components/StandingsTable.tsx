@@ -1,13 +1,14 @@
-import { TeamStanding } from "@/types/game";
-import { getTeamById, getLevelColor } from "@/data/teams";
+import { TeamStanding, Team } from "@/types/game";
+import { getLevelColor } from "@/data/teams";
 import { cn } from "@/lib/utils";
 import { Trophy, Medal, TrendingDown } from "lucide-react";
 
 interface StandingsTableProps {
   standings: TeamStanding[];
+  getTeamById: (id: string) => Team | undefined;
 }
 
-export const StandingsTable = ({ standings }: StandingsTableProps) => {
+export const StandingsTable = ({ standings, getTeamById }: StandingsTableProps) => {
   return (
     <div className="bg-card rounded-xl border shadow-card overflow-hidden">
       <div className="bg-primary text-primary-foreground p-4">

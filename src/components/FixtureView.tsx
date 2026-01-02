@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Match } from "@/types/game";
+import { Match, Team } from "@/types/game";
 import { MatchCard } from "./MatchCard";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ interface FixtureViewProps {
   matches: Match[];
   totalMatchdays: number;
   getMatchesByMatchday: (matchday: number) => Match[];
+  getTeamById: (id: string) => Team | undefined;
   onPlayMatch: (matchId: string) => void;
 }
 
@@ -16,6 +17,7 @@ export const FixtureView = ({
   matches, 
   totalMatchdays, 
   getMatchesByMatchday,
+  getTeamById,
   onPlayMatch 
 }: FixtureViewProps) => {
   const [currentMatchday, setCurrentMatchday] = useState(1);
@@ -102,7 +104,8 @@ export const FixtureView = ({
         {matchdayMatches.map(match => (
           <MatchCard 
             key={match.id} 
-            match={match} 
+            match={match}
+            getTeamById={getTeamById}
             onPlay={onPlayMatch}
             compact
           />
