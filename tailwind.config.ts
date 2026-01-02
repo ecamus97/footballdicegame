@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        display: ["Bebas Neue", "sans-serif"],
+        sans: ["Inter", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -47,6 +51,21 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        pitch: {
+          DEFAULT: "hsl(var(--pitch))",
+          light: "hsl(var(--pitch-light))",
+          lines: "hsl(var(--pitch-lines))",
+        },
+        gold: {
+          DEFAULT: "hsl(var(--gold))",
+          dark: "hsl(var(--gold-dark))",
+        },
+        level: {
+          1: "hsl(var(--level-1))",
+          2: "hsl(var(--level-2))",
+          3: "hsl(var(--level-3))",
+          4: "hsl(var(--level-4))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -63,22 +82,18 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      boxShadow: {
+        card: "var(--shadow-card)",
+        dice: "var(--shadow-dice)",
+      },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       animation: {
