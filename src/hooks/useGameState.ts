@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { Match, TeamStanding, MatchResult, Team } from "@/types/game";
+import { Match, TeamStanding, MatchResult, Team, TournamentConfig, TournamentFormat } from "@/types/game";
 import { teams as defaultTeams } from "@/data/teams";
 
 const STORAGE_KEY = "campeonato-chileno-2026";
@@ -8,14 +8,24 @@ interface SavedGameState {
   matches: Match[];
   standings: Map<string, TeamStanding>;
   teamLevels: Record<string, 1 | 2 | 3 | 4>;
+  tournamentConfig: TournamentConfig;
   savedAt: string;
 }
 
-// Generate round-robin fixture (ida y vuelta)
-const generateFixture = (teamList: Team[]): Match[] => {
+// Get default tournament config
+const getDefaultTournamentConfig = (): TournamentConfig => ({
+  name: "Campeonato Chileno 2026",
+  format: "double",
+  participatingTeamIds: defaultTeams.map(t => t.id),
+});
+
+// Generate round-robin fixture
+const generateFixture = (teamList: Team[], format: TournamentFormat): Match[] => {
   const matches: Match[] = [];
   const teamIds = teamList.map(t => t.id);
   const n = teamIds.length;
+  
+  if (n < 2) return [];
   
   const numRounds = n - 1;
   const half = n / 2;
@@ -52,18 +62,20 @@ const generateFixture = (teamList: Team[]): Match[] => {
     }
   }
   
-  // Create second leg matches (vuelta)
-  const firstLegMatches = [...matches];
-  for (const match of firstLegMatches) {
-    matches.push({
-      id: `match-${matchId++}`,
-      matchday: match.matchday + numRounds,
-      homeTeamId: match.awayTeamId,
-      awayTeamId: match.homeTeamId,
-      homeGoals: null,
-      awayGoals: null,
-      played: false,
-    });
+  // Create second leg matches (vuelta) if format is double
+  if (format === "double") {
+    const firstLegMatches = [...matches];
+    for (const match of firstLegMatches) {
+      matches.push({
+        id: `match-${matchId++}`,
+        matchday: match.matchday + numRounds,
+        homeTeamId: match.awayTeamId,
+        awayTeamId: match.homeTeamId,
+        homeGoals: null,
+        awayGoals: null,
+        played: false,
+      });
+    }
   }
   
   return matches.sort((a, b) => a.matchday - b.matchday);
@@ -100,24 +112,43 @@ const getDefaultTeamLevels = (): Record<string, 1 | 2 | 3 | 4> => {
 };
 
 export const useGameState = () => {
+  const [tournamentConfig, setTournamentConfig] = useState<TournamentConfig>(() => getDefaultTournamentConfig());
   const [teamLevels, setTeamLevels] = useState<Record<string, 1 | 2 | 3 | 4>>(() => getDefaultTeamLevels());
-  const [matches, setMatches] = useState<Match[]>(() => generateFixture(defaultTeams));
-  const [standings, setStandings] = useState<Map<string, TeamStanding>>(() => initializeStandings(defaultTeams));
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [standings, setStandings] = useState<Map<string, TeamStanding>>(() => new Map());
   const [hasSavedGame, setHasSavedGame] = useState(false);
+
+  // Get participating teams with current levels
+  const teams = useMemo(() => {
+    return defaultTeams
+      .filter(team => tournamentConfig.participatingTeamIds.includes(team.id))
+      .map(team => ({
+        ...team,
+        level: teamLevels[team.id] || team.level,
+      }));
+  }, [teamLevels, tournamentConfig.participatingTeamIds]);
+
+  // Get all available teams (for configuration)
+  const allTeams = useMemo(() => {
+    return defaultTeams.map(team => ({
+      ...team,
+      level: teamLevels[team.id] || team.level,
+    }));
+  }, [teamLevels]);
+
+  // Initialize tournament on first load or when config changes
+  useEffect(() => {
+    if (matches.length === 0) {
+      setMatches(generateFixture(teams, tournamentConfig.format));
+      setStandings(initializeStandings(teams));
+    }
+  }, []);
 
   // Check for saved game on mount
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     setHasSavedGame(!!saved);
   }, []);
-
-  // Get teams with current levels
-  const teams = useMemo(() => {
-    return defaultTeams.map(team => ({
-      ...team,
-      level: teamLevels[team.id] || team.level,
-    }));
-  }, [teamLevels]);
 
   // Get team by ID with current level
   const getTeamById = useCallback((id: string): Team | undefined => {
@@ -267,14 +298,38 @@ export const useGameState = () => {
   
   // Get total matchdays
   const totalMatchdays = useMemo(() => {
+    if (matches.length === 0) return 0;
     return Math.max(...matches.map(m => m.matchday));
   }, [matches]);
   
-  // Reset tournament
+  // Reset tournament with current config
   const resetTournament = useCallback(() => {
-    setMatches(generateFixture(teams));
-    setStandings(initializeStandings(teams));
-  }, [teams]);
+    const participatingTeams = defaultTeams
+      .filter(team => tournamentConfig.participatingTeamIds.includes(team.id))
+      .map(team => ({
+        ...team,
+        level: teamLevels[team.id] || team.level,
+      }));
+    setMatches(generateFixture(participatingTeams, tournamentConfig.format));
+    setStandings(initializeStandings(participatingTeams));
+  }, [tournamentConfig, teamLevels]);
+
+  // Update tournament config
+  const updateTournamentConfig = useCallback((config: Partial<TournamentConfig>) => {
+    setTournamentConfig(prev => ({ ...prev, ...config }));
+  }, []);
+
+  // Apply config changes and reset tournament
+  const applyConfigChanges = useCallback(() => {
+    const participatingTeams = defaultTeams
+      .filter(team => tournamentConfig.participatingTeamIds.includes(team.id))
+      .map(team => ({
+        ...team,
+        level: teamLevels[team.id] || team.level,
+      }));
+    setMatches(generateFixture(participatingTeams, tournamentConfig.format));
+    setStandings(initializeStandings(participatingTeams));
+  }, [tournamentConfig, teamLevels]);
 
   // Update team level
   const updateTeamLevel = useCallback((teamId: string, level: 1 | 2 | 3 | 4) => {
@@ -295,6 +350,7 @@ export const useGameState = () => {
       matches,
       standings,
       teamLevels,
+      tournamentConfig,
       savedAt: new Date().toISOString(),
     };
     
@@ -307,7 +363,7 @@ export const useGameState = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
     setHasSavedGame(true);
     return true;
-  }, [matches, standings, teamLevels]);
+  }, [matches, standings, teamLevels, tournamentConfig]);
 
   // Load game from localStorage
   const loadGame = useCallback(() => {
@@ -326,6 +382,11 @@ export const useGameState = () => {
       
       // Restore team levels
       setTeamLevels(parsed.teamLevels);
+      
+      // Restore tournament config (with fallback for old saves)
+      if (parsed.tournamentConfig) {
+        setTournamentConfig(parsed.tournamentConfig);
+      }
       
       return true;
     } catch (e) {
@@ -352,6 +413,7 @@ export const useGameState = () => {
         savedAt: new Date(parsed.savedAt),
         playedMatches,
         totalMatches: parsed.matches.length,
+        tournamentName: parsed.tournamentConfig?.name || "Campeonato Chileno 2026",
       };
     } catch {
       return null;
@@ -362,13 +424,17 @@ export const useGameState = () => {
     matches,
     standings: sortedStandings,
     teams,
+    allTeams,
     teamLevels,
+    tournamentConfig,
     getTeamById,
     simulateMatch,
     confirmMatchResult,
     getMatchesByMatchday,
     totalMatchdays,
     resetTournament,
+    updateTournamentConfig,
+    applyConfigChanges,
     updateTeamLevel,
     resetTeamLevels,
     saveGame,
