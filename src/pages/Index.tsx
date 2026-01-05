@@ -14,6 +14,7 @@ const Index = () => {
     standings,
     teams,
     teamLevels,
+    teamNames,
     tournamentConfig,
     getTeamById,
     simulateMatch, 
@@ -25,6 +26,8 @@ const Index = () => {
     applyConfigChanges,
     updateTeamLevel,
     resetTeamLevels,
+    updateTeamName,
+    resetTeamNames,
     saveGame,
     loadGame,
     deleteSavedGame,
@@ -52,10 +55,13 @@ const Index = () => {
         onReset={resetTournament}
         teams={teams}
         teamLevels={teamLevels}
+        teamNames={teamNames}
         tournamentConfig={tournamentConfig}
         onUpdateConfig={updateTournamentConfig}
         onUpdateLevel={updateTeamLevel}
         onResetLevels={resetTeamLevels}
+        onUpdateName={updateTeamName}
+        onResetNames={resetTeamNames}
         onApplyChanges={applyConfigChanges}
         hasPlayedMatches={hasPlayedMatches}
         onSave={saveGame}

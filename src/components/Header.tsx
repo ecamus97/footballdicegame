@@ -26,10 +26,13 @@ interface HeaderProps {
   onReset: () => void;
   teams: Team[];
   teamLevels: Record<string, TeamLevel>;
+  teamNames: Record<string, { name: string; shortName: string }>;
   tournamentConfig: TournamentConfigType;
   onUpdateConfig: (config: Partial<TournamentConfigType>) => void;
   onUpdateLevel: (teamId: string, level: TeamLevel) => void;
   onResetLevels: () => void;
+  onUpdateName: (teamId: string, name: string, shortName: string) => void;
+  onResetNames: () => void;
   onApplyChanges: () => void;
   hasPlayedMatches: boolean;
   onSave: () => boolean;
@@ -43,10 +46,13 @@ export const Header = ({
   onReset,
   teams,
   teamLevels,
+  teamNames,
   tournamentConfig,
   onUpdateConfig,
   onUpdateLevel,
   onResetLevels,
+  onUpdateName,
+  onResetNames,
   onApplyChanges,
   hasPlayedMatches,
   onSave,
@@ -125,9 +131,12 @@ export const Header = ({
             <TournamentConfig
               config={tournamentConfig}
               teamLevels={teamLevels}
+              teamNames={teamNames}
               onUpdateConfig={onUpdateConfig}
               onUpdateLevel={onUpdateLevel}
               onResetLevels={onResetLevels}
+              onUpdateName={onUpdateName}
+              onResetNames={onResetNames}
               onApplyChanges={onApplyChanges}
               hasPlayedMatches={hasPlayedMatches}
             />
