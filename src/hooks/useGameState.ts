@@ -8,6 +8,7 @@ interface SavedGameState {
   matches: Match[];
   standings: Map<string, TeamStanding>;
   teamLevels: Record<string, 1 | 2 | 3 | 4>;
+  teamNames: Record<string, { name: string; shortName: string }>;
   tournamentConfig: TournamentConfig;
   savedAt: string;
 }
@@ -16,8 +17,17 @@ interface SavedGameState {
 const getDefaultTournamentConfig = (): TournamentConfig => ({
   name: "Campeonato Chileno 2026",
   format: "double",
-  participatingTeamIds: defaultTeams.map(t => t.id),
+  participatingTeamIds: defaultTeams.slice(0, 16).map(t => t.id),
 });
+
+// Get default team names
+const getDefaultTeamNames = (): Record<string, { name: string; shortName: string }> => {
+  const names: Record<string, { name: string; shortName: string }> = {};
+  for (const team of defaultTeams) {
+    names[team.id] = { name: team.name, shortName: team.shortName };
+  }
+  return names;
+};
 
 // Generate round-robin fixture
 const generateFixture = (teamList: Team[], format: TournamentFormat): Match[] => {
@@ -114,27 +124,32 @@ const getDefaultTeamLevels = (): Record<string, 1 | 2 | 3 | 4> => {
 export const useGameState = () => {
   const [tournamentConfig, setTournamentConfig] = useState<TournamentConfig>(() => getDefaultTournamentConfig());
   const [teamLevels, setTeamLevels] = useState<Record<string, 1 | 2 | 3 | 4>>(() => getDefaultTeamLevels());
+  const [teamNames, setTeamNames] = useState<Record<string, { name: string; shortName: string }>>(() => getDefaultTeamNames());
   const [matches, setMatches] = useState<Match[]>([]);
   const [standings, setStandings] = useState<Map<string, TeamStanding>>(() => new Map());
   const [hasSavedGame, setHasSavedGame] = useState(false);
 
-  // Get participating teams with current levels
+  // Get participating teams with current levels and names
   const teams = useMemo(() => {
     return defaultTeams
       .filter(team => tournamentConfig.participatingTeamIds.includes(team.id))
       .map(team => ({
         ...team,
+        name: teamNames[team.id]?.name || team.name,
+        shortName: teamNames[team.id]?.shortName || team.shortName,
         level: teamLevels[team.id] || team.level,
       }));
-  }, [teamLevels, tournamentConfig.participatingTeamIds]);
+  }, [teamLevels, teamNames, tournamentConfig.participatingTeamIds]);
 
   // Get all available teams (for configuration)
   const allTeams = useMemo(() => {
     return defaultTeams.map(team => ({
       ...team,
+      name: teamNames[team.id]?.name || team.name,
+      shortName: teamNames[team.id]?.shortName || team.shortName,
       level: teamLevels[team.id] || team.level,
     }));
-  }, [teamLevels]);
+  }, [teamLevels, teamNames]);
 
   // Initialize tournament on first load or when config changes
   useEffect(() => {
@@ -150,14 +165,19 @@ export const useGameState = () => {
     setHasSavedGame(!!saved);
   }, []);
 
-  // Get team by ID with current level
+  // Get team by ID with current level and name
   const getTeamById = useCallback((id: string): Team | undefined => {
     const team = defaultTeams.find(t => t.id === id);
     if (team) {
-      return { ...team, level: teamLevels[team.id] || team.level };
+      return { 
+        ...team, 
+        name: teamNames[team.id]?.name || team.name,
+        shortName: teamNames[team.id]?.shortName || team.shortName,
+        level: teamLevels[team.id] || team.level 
+      };
     }
     return undefined;
-  }, [teamLevels]);
+  }, [teamLevels, teamNames]);
 
   // Roll a single die (1-6)
   const rollDie = useCallback((): number => {
@@ -344,12 +364,26 @@ export const useGameState = () => {
     setTeamLevels(getDefaultTeamLevels());
   }, []);
 
+  // Update team name
+  const updateTeamName = useCallback((teamId: string, name: string, shortName: string) => {
+    setTeamNames(prev => ({
+      ...prev,
+      [teamId]: { name, shortName },
+    }));
+  }, []);
+
+  // Reset team names to default
+  const resetTeamNames = useCallback(() => {
+    setTeamNames(getDefaultTeamNames());
+  }, []);
+
   // Save game to localStorage
   const saveGame = useCallback(() => {
     const state: SavedGameState = {
       matches,
       standings,
       teamLevels,
+      teamNames,
       tournamentConfig,
       savedAt: new Date().toISOString(),
     };
@@ -363,7 +397,7 @@ export const useGameState = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
     setHasSavedGame(true);
     return true;
-  }, [matches, standings, teamLevels, tournamentConfig]);
+  }, [matches, standings, teamLevels, teamNames, tournamentConfig]);
 
   // Load game from localStorage
   const loadGame = useCallback(() => {
@@ -382,6 +416,11 @@ export const useGameState = () => {
       
       // Restore team levels
       setTeamLevels(parsed.teamLevels);
+
+      // Restore team names (with fallback for old saves)
+      if (parsed.teamNames) {
+        setTeamNames(parsed.teamNames);
+      }
       
       // Restore tournament config (with fallback for old saves)
       if (parsed.tournamentConfig) {
@@ -426,6 +465,7 @@ export const useGameState = () => {
     teams,
     allTeams,
     teamLevels,
+    teamNames,
     tournamentConfig,
     getTeamById,
     simulateMatch,
@@ -437,6 +477,8 @@ export const useGameState = () => {
     applyConfigChanges,
     updateTeamLevel,
     resetTeamLevels,
+    updateTeamName,
+    resetTeamNames,
     saveGame,
     loadGame,
     deleteSavedGame,

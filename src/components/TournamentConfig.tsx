@@ -8,17 +8,20 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings2, Users, Trophy, Repeat } from "lucide-react";
+import { Settings2, Users, Trophy, Repeat, PenLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface TournamentConfigProps {
   config: TournamentConfigType;
-  teamLevels: Record<string, TeamLevel>;
+  teamLevels: Record<string, 1 | 2 | 3 | 4>;
+  teamNames: Record<string, { name: string; shortName: string }>;
   onUpdateConfig: (config: Partial<TournamentConfigType>) => void;
-  onUpdateLevel: (teamId: string, level: TeamLevel) => void;
+  onUpdateLevel: (teamId: string, level: 1 | 2 | 3 | 4) => void;
   onResetLevels: () => void;
+  onUpdateName: (teamId: string, name: string, shortName: string) => void;
+  onResetNames: () => void;
   onApplyChanges: () => void;
   hasPlayedMatches: boolean;
 }
@@ -26,22 +29,34 @@ interface TournamentConfigProps {
 export const TournamentConfig = ({
   config,
   teamLevels,
+  teamNames,
   onUpdateConfig,
   onUpdateLevel,
   onResetLevels,
+  onUpdateName,
+  onResetNames,
   onApplyChanges,
   hasPlayedMatches,
 }: TournamentConfigProps) => {
   const [open, setOpen] = useState(false);
   const [pendingConfig, setPendingConfig] = useState<Partial<TournamentConfigType>>({});
   const [pendingLevels, setPendingLevels] = useState<Record<string, TeamLevel>>({});
+  const [pendingNames, setPendingNames] = useState<Record<string, { name: string; shortName: string }>>({});
 
   const handleOpen = (isOpen: boolean) => {
     if (isOpen) {
       setPendingConfig({});
       setPendingLevels({});
+      setPendingNames({});
     }
     setOpen(isOpen);
+  };
+
+  const getCurrentName = (teamId: string): { name: string; shortName: string } => {
+    if (pendingNames[teamId]) return pendingNames[teamId];
+    if (teamNames[teamId]) return teamNames[teamId];
+    const team = allTeamsData.find(t => t.id === teamId);
+    return { name: team?.name || "", shortName: team?.shortName || "" };
   };
 
   const getCurrentConfig = (): TournamentConfigType => ({
@@ -54,7 +69,7 @@ export const TournamentConfig = ({
     return pendingLevels[teamId] ?? teamLevels[teamId] ?? allTeamsData.find(t => t.id === teamId)?.level ?? 3;
   };
 
-  const handleNameChange = (name: string) => {
+  const handleTournamentNameChange = (name: string) => {
     setPendingConfig(prev => ({ ...prev, name }));
   };
 
@@ -96,6 +111,17 @@ export const TournamentConfig = ({
     }));
   };
 
+  const handleNameChange = (teamId: string, field: 'name' | 'shortName', value: string) => {
+    const current = getCurrentName(teamId);
+    setPendingNames(prev => ({
+      ...prev,
+      [teamId]: {
+        ...current,
+        [field]: value,
+      },
+    }));
+  };
+
   const handleApply = () => {
     const currentConfig = getCurrentConfig();
     
@@ -129,15 +155,23 @@ export const TournamentConfig = ({
       onUpdateLevel(teamId, level);
     });
 
+    // Apply name changes
+    Object.entries(pendingNames).forEach(([teamId, names]) => {
+      onUpdateName(teamId, names.name, names.shortName);
+    });
+
     // Apply changes (this will reset tournament if needed)
     const hasConfigChanges = Object.keys(pendingConfig).length > 0;
     const hasLevelChanges = Object.keys(pendingLevels).length > 0;
+    const hasNameChanges = Object.keys(pendingNames).length > 0;
 
-    if (hasConfigChanges || hasLevelChanges) {
-      onApplyChanges();
+    if (hasConfigChanges || hasLevelChanges || hasNameChanges) {
+      if (hasConfigChanges) {
+        onApplyChanges();
+      }
       toast({
-        title: hasPlayedMatches ? "Torneo reiniciado" : "Configuración aplicada",
-        description: hasPlayedMatches 
+        title: hasPlayedMatches && hasConfigChanges ? "Torneo reiniciado" : "Configuración aplicada",
+        description: hasPlayedMatches && hasConfigChanges
           ? "Los cambios requieren reiniciar el torneo."
           : "La configuración ha sido actualizada.",
       });
@@ -145,6 +179,7 @@ export const TournamentConfig = ({
 
     setPendingConfig({});
     setPendingLevels({});
+    setPendingNames({});
     setOpen(false);
   };
 
@@ -154,6 +189,15 @@ export const TournamentConfig = ({
     toast({
       title: "Niveles restablecidos",
       description: "Los niveles han vuelto a su configuración original.",
+    });
+  };
+
+  const handleResetNames = () => {
+    onResetNames();
+    setPendingNames({});
+    toast({
+      title: "Nombres restablecidos",
+      description: "Los nombres han vuelto a su configuración original.",
     });
   };
 
@@ -194,18 +238,22 @@ export const TournamentConfig = ({
         </DialogHeader>
 
         <Tabs defaultValue="general" className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="w-full grid grid-cols-3">
+          <TabsList className="w-full grid grid-cols-4">
             <TabsTrigger value="general" className="gap-2">
               <Trophy className="w-4 h-4" />
-              General
+              <span className="hidden sm:inline">General</span>
             </TabsTrigger>
             <TabsTrigger value="teams" className="gap-2">
               <Users className="w-4 h-4" />
-              Equipos
+              <span className="hidden sm:inline">Equipos</span>
+            </TabsTrigger>
+            <TabsTrigger value="names" className="gap-2">
+              <PenLine className="w-4 h-4" />
+              <span className="hidden sm:inline">Nombres</span>
             </TabsTrigger>
             <TabsTrigger value="levels" className="gap-2">
               <Repeat className="w-4 h-4" />
-              Niveles
+              <span className="hidden sm:inline">Niveles</span>
             </TabsTrigger>
           </TabsList>
 
@@ -216,7 +264,7 @@ export const TournamentConfig = ({
                 <Input
                   id="tournament-name"
                   value={currentConfig.name}
-                  onChange={(e) => handleNameChange(e.target.value)}
+                  onChange={(e) => handleTournamentNameChange(e.target.value)}
                   placeholder="Ej: Campeonato Chileno 2026"
                 />
               </div>
@@ -321,6 +369,68 @@ export const TournamentConfig = ({
                   );
                 })}
               </div>
+            </TabsContent>
+
+            <TabsContent value="names" className="m-0 space-y-4 pr-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Edita los nombres de los equipos participantes
+                </p>
+                <Button variant="outline" size="sm" onClick={handleResetNames}>
+                  Restablecer
+                </Button>
+              </div>
+
+              {participatingTeams.length === 0 ? (
+                <div className="p-4 text-center text-muted-foreground">
+                  No hay equipos seleccionados
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {participatingTeams.map((team) => {
+                    const currentNames = getCurrentName(team.id);
+                    const level = getCurrentLevel(team.id);
+                    return (
+                      <div
+                        key={team.id}
+                        className="p-3 bg-muted/50 rounded-lg space-y-2"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            "px-2 py-0.5 rounded text-xs font-medium",
+                            getLevelColor(level)
+                          )}>
+                            N{level}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            ID: {team.id}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Nombre completo</Label>
+                            <Input
+                              value={currentNames.name}
+                              onChange={(e) => handleNameChange(team.id, 'name', e.target.value)}
+                              placeholder="Nombre del equipo"
+                              className="h-8"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Nombre corto</Label>
+                            <Input
+                              value={currentNames.shortName}
+                              onChange={(e) => handleNameChange(team.id, 'shortName', e.target.value)}
+                              placeholder="Abreviación"
+                              className="h-8"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="levels" className="m-0 space-y-4 pr-4">
