@@ -18,30 +18,36 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { TeamConfig } from "./TeamConfig";
+import { TournamentConfig } from "./TournamentConfig";
 import { SaveLoadGame } from "./SaveLoadGame";
-import { Team, TeamLevel } from "@/types/game";
+import { Team, TeamLevel, TournamentConfig as TournamentConfigType } from "@/types/game";
 
 interface HeaderProps {
   onReset: () => void;
   teams: Team[];
   teamLevels: Record<string, TeamLevel>;
+  tournamentConfig: TournamentConfigType;
+  onUpdateConfig: (config: Partial<TournamentConfigType>) => void;
   onUpdateLevel: (teamId: string, level: TeamLevel) => void;
   onResetLevels: () => void;
+  onApplyChanges: () => void;
   hasPlayedMatches: boolean;
   onSave: () => boolean;
   onLoad: () => boolean;
   onDeleteSave: () => void;
   hasSavedGame: boolean;
-  getSavedGameInfo: () => { savedAt: Date; playedMatches: number; totalMatches: number } | null;
+  getSavedGameInfo: () => { savedAt: Date; playedMatches: number; totalMatches: number; tournamentName?: string } | null;
 }
 
 export const Header = ({ 
   onReset,
   teams,
   teamLevels,
+  tournamentConfig,
+  onUpdateConfig,
   onUpdateLevel,
   onResetLevels,
+  onApplyChanges,
   hasPlayedMatches,
   onSave,
   onLoad,
@@ -59,10 +65,10 @@ export const Header = ({
             </div>
             <div>
               <h1 className="font-display text-3xl md:text-4xl tracking-wide">
-                Campeonato Chileno 2026
+                {tournamentConfig.name}
               </h1>
               <p className="text-sm opacity-80">
-                Simulador de Liga por Dados
+                Simulador de Liga por Dados • {tournamentConfig.format === "double" ? "Ida y Vuelta" : "Solo Ida"}
               </p>
             </div>
           </div>
@@ -116,12 +122,13 @@ export const Header = ({
               </DialogContent>
             </Dialog>
 
-            <TeamConfig
-              teams={teams}
+            <TournamentConfig
+              config={tournamentConfig}
               teamLevels={teamLevels}
+              onUpdateConfig={onUpdateConfig}
               onUpdateLevel={onUpdateLevel}
               onResetLevels={onResetLevels}
-              onResetTournament={onReset}
+              onApplyChanges={onApplyChanges}
               hasPlayedMatches={hasPlayedMatches}
             />
 

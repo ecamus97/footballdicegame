@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useGameState } from "@/hooks/useGameState";
 import { Header } from "@/components/Header";
 import { FixtureView } from "@/components/FixtureView";
@@ -14,12 +14,15 @@ const Index = () => {
     standings,
     teams,
     teamLevels,
+    tournamentConfig,
     getTeamById,
     simulateMatch, 
     confirmMatchResult, 
     getMatchesByMatchday,
     totalMatchdays,
     resetTournament,
+    updateTournamentConfig,
+    applyConfigChanges,
     updateTeamLevel,
     resetTeamLevels,
     saveGame,
@@ -40,7 +43,7 @@ const Index = () => {
 
   const playedMatches = matches.filter(m => m.played).length;
   const totalMatches = matches.length;
-  const progress = Math.round((playedMatches / totalMatches) * 100);
+  const progress = totalMatches > 0 ? Math.round((playedMatches / totalMatches) * 100) : 0;
   const hasPlayedMatches = playedMatches > 0;
 
   return (
@@ -49,8 +52,11 @@ const Index = () => {
         onReset={resetTournament}
         teams={teams}
         teamLevels={teamLevels}
+        tournamentConfig={tournamentConfig}
+        onUpdateConfig={updateTournamentConfig}
         onUpdateLevel={updateTeamLevel}
         onResetLevels={resetTeamLevels}
+        onApplyChanges={applyConfigChanges}
         hasPlayedMatches={hasPlayedMatches}
         onSave={saveGame}
         onLoad={loadGame}

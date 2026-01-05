@@ -1,5 +1,13 @@
 export type TeamLevel = 1 | 2 | 3 | 4;
 
+export type TournamentFormat = "single" | "double"; // ida o ida y vuelta
+
+export interface TournamentConfig {
+  name: string;
+  format: TournamentFormat;
+  participatingTeamIds: string[];
+}
+
 export interface Team {
   id: string;
   name: string;
