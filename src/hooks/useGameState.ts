@@ -18,6 +18,7 @@ const getDefaultTournamentConfig = (): TournamentConfig => ({
   name: "Campeonato Chileno 2026",
   format: "double",
   participatingTeamIds: defaultTeams.slice(0, 16).map(t => t.id),
+  relegationSpots: 2,
 });
 
 // Get default team names
@@ -340,14 +341,15 @@ export const useGameState = () => {
   }, []);
 
   // Apply config changes and reset tournament
-  const applyConfigChanges = useCallback(() => {
+  const applyConfigChanges = useCallback((newConfig?: TournamentConfig) => {
+    const configToUse = newConfig || tournamentConfig;
     const participatingTeams = defaultTeams
-      .filter(team => tournamentConfig.participatingTeamIds.includes(team.id))
+      .filter(team => configToUse.participatingTeamIds.includes(team.id))
       .map(team => ({
         ...team,
         level: teamLevels[team.id] || team.level,
       }));
-    setMatches(generateFixture(participatingTeams, tournamentConfig.format));
+    setMatches(generateFixture(participatingTeams, configToUse.format));
     setStandings(initializeStandings(participatingTeams));
   }, [tournamentConfig, teamLevels]);
 

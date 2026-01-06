@@ -6,6 +6,7 @@ export interface TournamentConfig {
   name: string;
   format: TournamentFormat;
   participatingTeamIds: string[];
+  relegationSpots: number;
 }
 
 export interface Team {
