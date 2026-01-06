@@ -112,7 +112,7 @@ const Index = () => {
               />
             </TabsContent>
             <TabsContent value="standings">
-              <StandingsTable standings={standings} getTeamById={getTeamById} />
+              <StandingsTable standings={standings} getTeamById={getTeamById} tournamentConfig={tournamentConfig} />
             </TabsContent>
           </Tabs>
         </div>
@@ -126,7 +126,7 @@ const Index = () => {
             getTeamById={getTeamById}
             onPlayMatch={handlePlayMatch}
           />
-          <StandingsTable standings={standings} getTeamById={getTeamById} />
+          <StandingsTable standings={standings} getTeamById={getTeamById} tournamentConfig={tournamentConfig} />
         </div>
       </main>
       

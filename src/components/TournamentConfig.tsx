@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Team, TeamLevel, TournamentConfig as TournamentConfigType, TournamentFormat } from "@/types/game";
+import { Team, TeamLevel, TournamentConfig as TournamentConfigType, TournamentFormat, PlayoffFormat, InternationalCup } from "@/types/game";
 import { teams as allTeamsData, getLevelColor, getLevelLabel } from "@/data/teams";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,10 +8,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings2, Users, Trophy, Repeat, PenLine } from "lucide-react";
+import { Settings2, Users, Trophy, Repeat, PenLine, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch as SwitchComponent } from "@/components/ui/switch";
 
 interface TournamentConfigProps {
   config: TournamentConfigType;
@@ -64,6 +65,15 @@ export const TournamentConfig = ({
     format: pendingConfig.format ?? config.format,
     participatingTeamIds: pendingConfig.participatingTeamIds ?? config.participatingTeamIds,
     relegationSpots: pendingConfig.relegationSpots ?? config.relegationSpots,
+    // Playoffs
+    playoffsEnabled: pendingConfig.playoffsEnabled ?? config.playoffsEnabled,
+    playoffsFormat: pendingConfig.playoffsFormat ?? config.playoffsFormat,
+    playoffsTeams: pendingConfig.playoffsTeams ?? config.playoffsTeams,
+    // International cups
+    internationalCups: pendingConfig.internationalCups ?? config.internationalCups,
+    // Promotion/Relegation playoff
+    promotionPlayoffEnabled: pendingConfig.promotionPlayoffEnabled ?? config.promotionPlayoffEnabled,
+    promotionPlayoffSpots: pendingConfig.promotionPlayoffSpots ?? config.promotionPlayoffSpots,
   });
 
   const getCurrentLevel = (teamId: string): TeamLevel => {
@@ -275,89 +285,263 @@ export const TournamentConfig = ({
           </TabsList>
 
           <ScrollArea className="flex-1 mt-4">
-            <TabsContent value="general" className="m-0 space-y-6 pr-4 h-[350px]">
-              <div className="space-y-2">
-                <Label htmlFor="tournament-name">Nombre del Campeonato</Label>
-                <Input
-                  id="tournament-name"
-                  value={currentConfig.name}
-                  onChange={(e) => handleTournamentNameChange(e.target.value)}
-                  placeholder="Ej: Campeonato Chileno 2026"
-                />
-              </div>
+            <TabsContent value="general" className="m-0 pr-4">
+              <ScrollArea className="h-[350px]">
+                <div className="space-y-6 pr-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="tournament-name">Nombre del Campeonato</Label>
+                    <Input
+                      id="tournament-name"
+                      value={currentConfig.name}
+                      onChange={(e) => handleTournamentNameChange(e.target.value)}
+                      placeholder="Ej: Campeonato Chileno 2026"
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <Label>Formato del Torneo</Label>
-                <Select
-                  value={currentConfig.format}
-                  onValueChange={(value) => handleFormatChange(value as TournamentFormat)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="single">Solo Ida (1 partido por enfrentamiento)</SelectItem>
-                    <SelectItem value="double">Ida y Vuelta (2 partidos por enfrentamiento)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-muted-foreground">
-                  {currentConfig.format === "single" 
-                    ? "Cada equipo juega 1 vez contra cada rival."
-                    : "Cada equipo juega 2 veces contra cada rival (local y visitante)."}
-                </p>
-              </div>
+                  <div className="space-y-2">
+                    <Label>Formato del Torneo</Label>
+                    <Select
+                      value={currentConfig.format}
+                      onValueChange={(value) => handleFormatChange(value as TournamentFormat)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="single">Solo Ida (1 partido por enfrentamiento)</SelectItem>
+                        <SelectItem value="double">Ida y Vuelta (2 partidos por enfrentamiento)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              <div className="space-y-2">
-                <Label>Equipos que descienden</Label>
-                <Select
-                  value={String(currentConfig.relegationSpots)}
-                  onValueChange={(value) => handleRelegationSpotsChange(parseInt(value))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[0, 1, 2, 3, 4, 5, 6].map(num => (
-                      <SelectItem key={num} value={String(num)}>
-                        {num === 0 ? "Sin descenso" : `${num} equipo${num > 1 ? 's' : ''}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-muted-foreground">
-                  Cantidad de equipos que descienden al finalizar el torneo.
-                </p>
-              </div>
+                  {/* Playoffs Section */}
+                  <div className="space-y-3 p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-semibold">Playoffs</Label>
+                      <SwitchComponent
+                        checked={currentConfig.playoffsEnabled}
+                        onCheckedChange={(checked) => setPendingConfig(prev => ({ ...prev, playoffsEnabled: checked }))}
+                      />
+                    </div>
+                    
+                    {currentConfig.playoffsEnabled && (
+                      <div className="space-y-3 pt-2">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Equipos clasifican</Label>
+                            <Select
+                              value={String(currentConfig.playoffsTeams)}
+                              onValueChange={(value) => setPendingConfig(prev => ({ ...prev, playoffsTeams: parseInt(value) }))}
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {[2, 4, 6, 8].map(num => (
+                                  <SelectItem key={num} value={String(num)}>{num} equipos</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Formato playoffs</Label>
+                            <Select
+                              value={currentConfig.playoffsFormat}
+                              onValueChange={(value) => setPendingConfig(prev => ({ ...prev, playoffsFormat: value as PlayoffFormat }))}
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="single">Solo ida</SelectItem>
+                                <SelectItem value="double">Ida y vuelta</SelectItem>
+                                <SelectItem value="final_only">Final única</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-              <div className="p-4 bg-muted rounded-lg space-y-2">
-                <h4 className="font-medium">Resumen del Torneo</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Equipos:</span>{" "}
-                    <span className="font-medium">{numTeams}</span>
+                  {/* International Cups Section */}
+                  <div className="space-y-3 p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-base font-semibold">Copas Internacionales</Label>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const cups = [...currentConfig.internationalCups];
+                          const colors = [
+                            "bg-green-500/20 border-l-green-500",
+                            "bg-blue-500/20 border-l-blue-500",
+                            "bg-cyan-500/20 border-l-cyan-500",
+                            "bg-teal-500/20 border-l-teal-500",
+                          ];
+                          cups.push({
+                            name: `Copa ${cups.length + 1}`,
+                            spots: 2,
+                            color: colors[cups.length % colors.length],
+                          });
+                          setPendingConfig(prev => ({ ...prev, internationalCups: cups }));
+                        }}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Agregar
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      {currentConfig.internationalCups.map((cup, index) => (
+                        <div key={index} className="flex items-center gap-2 p-2 bg-background/50 rounded">
+                          <div className={cn("w-3 h-full min-h-[32px] rounded", cup.color.split(" ")[0])} />
+                          <Input
+                            value={cup.name}
+                            onChange={(e) => {
+                              const cups = [...currentConfig.internationalCups];
+                              cups[index] = { ...cups[index], name: e.target.value };
+                              setPendingConfig(prev => ({ ...prev, internationalCups: cups }));
+                            }}
+                            placeholder="Nombre de la copa"
+                            className="h-8 flex-1"
+                          />
+                          <Select
+                            value={String(cup.spots)}
+                            onValueChange={(value) => {
+                              const cups = [...currentConfig.internationalCups];
+                              cups[index] = { ...cups[index], spots: parseInt(value) };
+                              setPendingConfig(prev => ({ ...prev, internationalCups: cups }));
+                            }}
+                          >
+                            <SelectTrigger className="w-24 h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[0, 1, 2, 3, 4, 5, 6].map(num => (
+                                <SelectItem key={num} value={String(num)}>
+                                  {num === 0 ? "Ninguno" : `${num} cupos`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => {
+                              const cups = currentConfig.internationalCups.filter((_, i) => i !== index);
+                              setPendingConfig(prev => ({ ...prev, internationalCups: cups }));
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                      {currentConfig.internationalCups.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-2">
+                          Sin copas internacionales configuradas
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Fechas:</span>{" "}
-                    <span className="font-medium">{totalMatchdays}</span>
+
+                  {/* Relegation Section */}
+                  <div className="space-y-3 p-4 bg-destructive/10 rounded-lg border border-destructive/20">
+                    <Label className="text-base font-semibold">Descenso y Promoción</Label>
+                    
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Equipos que descienden directamente</Label>
+                        <Select
+                          value={String(currentConfig.relegationSpots)}
+                          onValueChange={(value) => handleRelegationSpotsChange(parseInt(value))}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[0, 1, 2, 3, 4, 5, 6].map(num => (
+                              <SelectItem key={num} value={String(num)}>
+                                {num === 0 ? "Sin descenso directo" : `${num} equipo${num > 1 ? 's' : ''}`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                        <div>
+                          <Label className="text-sm">Partido de Promoción</Label>
+                          <p className="text-xs text-muted-foreground">Posiciones que juegan promoción/descenso</p>
+                        </div>
+                        <SwitchComponent
+                          checked={currentConfig.promotionPlayoffEnabled}
+                          onCheckedChange={(checked) => setPendingConfig(prev => ({ ...prev, promotionPlayoffEnabled: checked }))}
+                        />
+                      </div>
+                      
+                      {currentConfig.promotionPlayoffEnabled && (
+                        <div className="space-y-1">
+                          <Label className="text-xs">Posiciones en promoción</Label>
+                          <Select
+                            value={String(currentConfig.promotionPlayoffSpots)}
+                            onValueChange={(value) => setPendingConfig(prev => ({ ...prev, promotionPlayoffSpots: parseInt(value) }))}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[1, 2, 3].map(num => (
+                                <SelectItem key={num} value={String(num)}>
+                                  {num} posición{num > 1 ? 'es' : ''}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Partidos totales:</span>{" "}
-                    <span className="font-medium">{totalMatches}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Formato:</span>{" "}
-                    <span className="font-medium">
-                      {currentConfig.format === "single" ? "Ida" : "Ida y Vuelta"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Descienden:</span>{" "}
-                    <span className="font-medium">
-                      {currentConfig.relegationSpots === 0 ? "Ninguno" : currentConfig.relegationSpots}
-                    </span>
+
+                  {/* Summary */}
+                  <div className="p-4 bg-muted rounded-lg space-y-2">
+                    <h4 className="font-medium">Resumen del Torneo</h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Equipos:</span>{" "}
+                        <span className="font-medium">{numTeams}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Fechas:</span>{" "}
+                        <span className="font-medium">{totalMatchdays}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Partidos totales:</span>{" "}
+                        <span className="font-medium">{totalMatches}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Formato:</span>{" "}
+                        <span className="font-medium">
+                          {currentConfig.format === "single" ? "Ida" : "Ida y Vuelta"}
+                        </span>
+                      </div>
+                      {currentConfig.playoffsEnabled && (
+                        <div>
+                          <span className="text-muted-foreground">Playoffs:</span>{" "}
+                          <span className="font-medium">{currentConfig.playoffsTeams} equipos</span>
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-muted-foreground">Descienden:</span>{" "}
+                        <span className="font-medium">
+                          {currentConfig.relegationSpots === 0 ? "Ninguno" : currentConfig.relegationSpots}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </ScrollArea>
             </TabsContent>
 
             <TabsContent value="teams" className="m-0 space-y-4 pr-4">

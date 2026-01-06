@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { Match, TeamStanding, MatchResult, Team, TournamentConfig, TournamentFormat } from "@/types/game";
+import { Match, TeamStanding, MatchResult, Team, TournamentConfig, TournamentFormat, InternationalCup } from "@/types/game";
 import { teams as defaultTeams } from "@/data/teams";
 
 const STORAGE_KEY = "campeonato-chileno-2026";
@@ -19,6 +19,18 @@ const getDefaultTournamentConfig = (): TournamentConfig => ({
   format: "double",
   participatingTeamIds: defaultTeams.slice(0, 16).map(t => t.id),
   relegationSpots: 2,
+  // Playoffs
+  playoffsEnabled: false,
+  playoffsFormat: "double",
+  playoffsTeams: 4,
+  // International cups
+  internationalCups: [
+    { name: "Copa Libertadores", spots: 4, color: "bg-green-500/20 border-l-green-500" },
+    { name: "Copa Sudamericana", spots: 2, color: "bg-blue-500/20 border-l-blue-500" },
+  ],
+  // Promotion/Relegation playoff
+  promotionPlayoffEnabled: false,
+  promotionPlayoffSpots: 1,
 });
 
 // Get default team names
