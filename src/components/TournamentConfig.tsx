@@ -275,7 +275,7 @@ export const TournamentConfig = ({
           </TabsList>
 
           <ScrollArea className="flex-1 mt-4">
-            <TabsContent value="general" className="m-0 space-y-6 pr-4">
+            <TabsContent value="general" className="m-0 space-y-6 pr-4 h-[350px]">
               <div className="space-y-2">
                 <Label htmlFor="tournament-name">Nombre del Campeonato</Label>
                 <Input
@@ -521,13 +521,15 @@ export const TournamentConfig = ({
                           </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {teamsInLevel.map(team => (
+                          {teamsInLevel.map(team => {
+                            const teamDisplayName = getCurrentName(team.id).name;
+                            return (
                               <div
                                 key={team.id}
                                 className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
                               >
                                 <span className="text-sm font-medium truncate mr-2">
-                                  {team.name}
+                                  {teamDisplayName}
                                 </span>
                                 <Select
                                   value={getCurrentLevel(team.id).toString()}
@@ -544,7 +546,8 @@ export const TournamentConfig = ({
                                   </SelectContent>
                                 </Select>
                               </div>
-                            ))}
+                            );
+                          })}
                           </div>
                         </div>
                       );
