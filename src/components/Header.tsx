@@ -33,7 +33,7 @@ interface HeaderProps {
   onResetLevels: () => void;
   onUpdateName: (teamId: string, name: string, shortName: string) => void;
   onResetNames: () => void;
-  onApplyChanges: () => void;
+  onApplyChanges: (newConfig?: TournamentConfigType) => void;
   hasPlayedMatches: boolean;
   onSave: () => boolean;
   onLoad: () => boolean;

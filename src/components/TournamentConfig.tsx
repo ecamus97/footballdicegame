@@ -22,7 +22,7 @@ interface TournamentConfigProps {
   onResetLevels: () => void;
   onUpdateName: (teamId: string, name: string, shortName: string) => void;
   onResetNames: () => void;
-  onApplyChanges: () => void;
+  onApplyChanges: (newConfig?: TournamentConfigType) => void;
   hasPlayedMatches: boolean;
 }
 
@@ -63,6 +63,7 @@ export const TournamentConfig = ({
     name: pendingConfig.name ?? config.name,
     format: pendingConfig.format ?? config.format,
     participatingTeamIds: pendingConfig.participatingTeamIds ?? config.participatingTeamIds,
+    relegationSpots: pendingConfig.relegationSpots ?? config.relegationSpots,
   });
 
   const getCurrentLevel = (teamId: string): TeamLevel => {
@@ -122,6 +123,10 @@ export const TournamentConfig = ({
     }));
   };
 
+  const handleRelegationSpotsChange = (spots: number) => {
+    setPendingConfig(prev => ({ ...prev, relegationSpots: spots }));
+  };
+
   const handleApply = () => {
     const currentConfig = getCurrentConfig();
     
@@ -145,8 +150,20 @@ export const TournamentConfig = ({
       return;
     }
 
-    // Apply config changes
-    if (Object.keys(pendingConfig).length > 0) {
+    // Validate relegation spots
+    if (currentConfig.relegationSpots >= currentConfig.participatingTeamIds.length) {
+      toast({
+        title: "Error",
+        description: "Los equipos que descienden deben ser menos que el total de equipos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Apply config changes first
+    const hasConfigChanges = Object.keys(pendingConfig).length > 0;
+    
+    if (hasConfigChanges) {
       onUpdateConfig(pendingConfig);
     }
 
@@ -160,14 +177,14 @@ export const TournamentConfig = ({
       onUpdateName(teamId, names.name, names.shortName);
     });
 
-    // Apply changes (this will reset tournament if needed)
-    const hasConfigChanges = Object.keys(pendingConfig).length > 0;
+    // Apply changes and regenerate fixture with the NEW config
     const hasLevelChanges = Object.keys(pendingLevels).length > 0;
     const hasNameChanges = Object.keys(pendingNames).length > 0;
 
     if (hasConfigChanges || hasLevelChanges || hasNameChanges) {
       if (hasConfigChanges) {
-        onApplyChanges();
+        // Pass the full new config to applyConfigChanges
+        onApplyChanges(currentConfig);
       }
       toast({
         title: hasPlayedMatches && hasConfigChanges ? "Torneo reiniciado" : "Configuración aplicada",
@@ -290,6 +307,28 @@ export const TournamentConfig = ({
                 </p>
               </div>
 
+              <div className="space-y-2">
+                <Label>Equipos que descienden</Label>
+                <Select
+                  value={String(currentConfig.relegationSpots)}
+                  onValueChange={(value) => handleRelegationSpotsChange(parseInt(value))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[0, 1, 2, 3, 4, 5, 6].map(num => (
+                      <SelectItem key={num} value={String(num)}>
+                        {num === 0 ? "Sin descenso" : `${num} equipo${num > 1 ? 's' : ''}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  Cantidad de equipos que descienden al finalizar el torneo.
+                </p>
+              </div>
+
               <div className="p-4 bg-muted rounded-lg space-y-2">
                 <h4 className="font-medium">Resumen del Torneo</h4>
                 <div className="grid grid-cols-2 gap-2 text-sm">
@@ -309,6 +348,12 @@ export const TournamentConfig = ({
                     <span className="text-muted-foreground">Formato:</span>{" "}
                     <span className="font-medium">
                       {currentConfig.format === "single" ? "Ida" : "Ida y Vuelta"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Descienden:</span>{" "}
+                    <span className="font-medium">
+                      {currentConfig.relegationSpots === 0 ? "Ninguno" : currentConfig.relegationSpots}
                     </span>
                   </div>
                 </div>
@@ -336,39 +381,41 @@ export const TournamentConfig = ({
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {allTeamsData.map((team) => {
-                  const isSelected = currentConfig.participatingTeamIds.includes(team.id);
-                  const level = getCurrentLevel(team.id);
-                  return (
-                    <div
-                      key={team.id}
-                      className={cn(
-                        "flex items-center gap-3 p-3 rounded-lg border transition-colors",
-                        isSelected ? "bg-primary/5 border-primary/30" : "bg-muted/30 border-transparent"
-                      )}
-                    >
-                      <Checkbox
-                        id={`team-${team.id}`}
-                        checked={isSelected}
-                        onCheckedChange={(checked) => handleTeamToggle(team.id, checked as boolean)}
-                      />
-                      <label
-                        htmlFor={`team-${team.id}`}
-                        className="flex-1 text-sm font-medium cursor-pointer"
+              <ScrollArea className="h-[300px]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pr-4">
+                  {allTeamsData.map((team) => {
+                    const isSelected = currentConfig.participatingTeamIds.includes(team.id);
+                    const level = getCurrentLevel(team.id);
+                    return (
+                      <div
+                        key={team.id}
+                        className={cn(
+                          "flex items-center gap-3 p-3 rounded-lg border transition-colors",
+                          isSelected ? "bg-primary/5 border-primary/30" : "bg-muted/30 border-transparent"
+                        )}
                       >
-                        {team.name}
-                      </label>
-                      <span className={cn(
-                        "px-2 py-0.5 rounded text-xs font-medium",
-                        getLevelColor(level)
-                      )}>
-                        N{level}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+                        <Checkbox
+                          id={`team-${team.id}`}
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handleTeamToggle(team.id, checked as boolean)}
+                        />
+                        <label
+                          htmlFor={`team-${team.id}`}
+                          className="flex-1 text-sm font-medium cursor-pointer"
+                        >
+                          {team.name}
+                        </label>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded text-xs font-medium",
+                          getLevelColor(level)
+                        )}>
+                          N{level}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
             </TabsContent>
 
             <TabsContent value="names" className="m-0 space-y-4 pr-4">
@@ -386,50 +433,52 @@ export const TournamentConfig = ({
                   No hay equipos seleccionados
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {participatingTeams.map((team) => {
-                    const currentNames = getCurrentName(team.id);
-                    const level = getCurrentLevel(team.id);
-                    return (
-                      <div
-                        key={team.id}
-                        className="p-3 bg-muted/50 rounded-lg space-y-2"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className={cn(
-                            "px-2 py-0.5 rounded text-xs font-medium",
-                            getLevelColor(level)
-                          )}>
-                            N{level}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            ID: {team.id}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <Label className="text-xs">Nombre completo</Label>
-                            <Input
-                              value={currentNames.name}
-                              onChange={(e) => handleNameChange(team.id, 'name', e.target.value)}
-                              placeholder="Nombre del equipo"
-                              className="h-8"
-                            />
+                <ScrollArea className="h-[300px]">
+                  <div className="space-y-3 pr-4">
+                    {participatingTeams.map((team) => {
+                      const currentNames = getCurrentName(team.id);
+                      const level = getCurrentLevel(team.id);
+                      return (
+                        <div
+                          key={team.id}
+                          className="p-3 bg-muted/50 rounded-lg space-y-2"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              "px-2 py-0.5 rounded text-xs font-medium",
+                              getLevelColor(level)
+                            )}>
+                              N{level}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              ID: {team.id}
+                            </span>
                           </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Nombre corto</Label>
-                            <Input
-                              value={currentNames.shortName}
-                              onChange={(e) => handleNameChange(team.id, 'shortName', e.target.value)}
-                              placeholder="Abreviación"
-                              className="h-8"
-                            />
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <Label className="text-xs">Nombre completo</Label>
+                              <Input
+                                value={currentNames.name}
+                                onChange={(e) => handleNameChange(team.id, 'name', e.target.value)}
+                                placeholder="Nombre del equipo"
+                                className="h-8"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Nombre corto</Label>
+                              <Input
+                                value={currentNames.shortName}
+                                onChange={(e) => handleNameChange(team.id, 'shortName', e.target.value)}
+                                placeholder="Abreviación"
+                                className="h-8"
+                              />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
               )}
             </TabsContent>
 
@@ -448,58 +497,60 @@ export const TournamentConfig = ({
                   No hay equipos seleccionados
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {([1, 2, 3, 4] as TeamLevel[]).map(level => {
-                    const teamsInLevel = teamsByLevel[level] || [];
-                    if (teamsInLevel.length === 0) return null;
-                    
-                    return (
-                      <div key={level} className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className={cn(
-                            "px-2 py-1 rounded text-sm font-medium",
-                            getLevelColor(level)
-                          )}>
-                            Nivel {level}
-                          </span>
-                          <span className="text-sm text-muted-foreground">
-                            {getLevelLabel(level)}
-                          </span>
-                          <span className="text-xs text-muted-foreground ml-auto">
-                            ({teamsInLevel.length} equipos)
-                          </span>
-                        </div>
+                <ScrollArea className="h-[300px]">
+                  <div className="space-y-6 pr-4">
+                    {([1, 2, 3, 4] as TeamLevel[]).map(level => {
+                      const teamsInLevel = teamsByLevel[level] || [];
+                      if (teamsInLevel.length === 0) return null;
+                      
+                      return (
+                        <div key={level} className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              "px-2 py-1 rounded text-sm font-medium",
+                              getLevelColor(level)
+                            )}>
+                              Nivel {level}
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                              {getLevelLabel(level)}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-auto">
+                              ({teamsInLevel.length} equipos)
+                            </span>
+                          </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {teamsInLevel.map(team => (
-                            <div
-                              key={team.id}
-                              className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
-                            >
-                              <span className="text-sm font-medium truncate mr-2">
-                                {team.name}
-                              </span>
-                              <Select
-                                value={getCurrentLevel(team.id).toString()}
-                                onValueChange={(value) => handleLevelChange(team.id, value)}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {teamsInLevel.map(team => (
+                              <div
+                                key={team.id}
+                                className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
                               >
-                                <SelectTrigger className="w-24 h-8">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="1">Nivel 1</SelectItem>
-                                  <SelectItem value="2">Nivel 2</SelectItem>
-                                  <SelectItem value="3">Nivel 3</SelectItem>
-                                  <SelectItem value="4">Nivel 4</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          ))}
+                                <span className="text-sm font-medium truncate mr-2">
+                                  {team.name}
+                                </span>
+                                <Select
+                                  value={getCurrentLevel(team.id).toString()}
+                                  onValueChange={(value) => handleLevelChange(team.id, value)}
+                                >
+                                  <SelectTrigger className="w-24 h-8">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="1">Nivel 1</SelectItem>
+                                    <SelectItem value="2">Nivel 2</SelectItem>
+                                    <SelectItem value="3">Nivel 3</SelectItem>
+                                    <SelectItem value="4">Nivel 4</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
               )}
             </TabsContent>
           </ScrollArea>
