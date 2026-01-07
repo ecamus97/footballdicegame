@@ -353,9 +353,9 @@ export const TournamentConfig = ({
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="single">Solo ida</SelectItem>
-                                <SelectItem value="double">Ida y vuelta</SelectItem>
-                                <SelectItem value="final_only">Final única</SelectItem>
+                                <SelectItem value="single">Solo ida (todos los partidos, final en cancha neutral)</SelectItem>
+                                <SelectItem value="double">Ida y vuelta + final única neutral</SelectItem>
+                                <SelectItem value="final_only">Ida y vuelta completo (incluyendo final)</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>

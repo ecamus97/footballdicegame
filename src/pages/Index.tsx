@@ -4,9 +4,10 @@ import { Header } from "@/components/Header";
 import { FixtureView } from "@/components/FixtureView";
 import { StandingsTable } from "@/components/StandingsTable";
 import { MatchSimulator } from "@/components/MatchSimulator";
+import { PlayoffBracket } from "@/components/PlayoffBracket";
 import { Match } from "@/types/game";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Trophy } from "lucide-react";
+import { Calendar, Trophy, Crown } from "lucide-react";
 
 const Index = () => {
   const { 
@@ -21,6 +22,7 @@ const Index = () => {
     confirmMatchResult, 
     getMatchesByMatchday,
     totalMatchdays,
+    regularSeasonComplete,
     resetTournament,
     updateTournamentConfig,
     applyConfigChanges,
@@ -48,6 +50,7 @@ const Index = () => {
   const totalMatches = matches.length;
   const progress = totalMatches > 0 ? Math.round((playedMatches / totalMatches) * 100) : 0;
   const hasPlayedMatches = playedMatches > 0;
+  const showPlayoffs = tournamentConfig.playoffsEnabled && regularSeasonComplete;
 
   return (
     <div className="min-h-screen bg-background">
@@ -75,12 +78,14 @@ const Index = () => {
       <div className="bg-muted border-b">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-muted-foreground">Progreso del Torneo</span>
+            <span className="text-muted-foreground">
+              {regularSeasonComplete ? "¡Temporada Regular Completada!" : "Progreso del Torneo"}
+            </span>
             <span className="font-medium">{playedMatches} / {totalMatches} partidos</span>
           </div>
           <div className="h-2 bg-border rounded-full overflow-hidden">
             <div 
-              className="h-full bg-primary transition-all duration-500 rounded-full"
+              className={`h-full transition-all duration-500 rounded-full ${regularSeasonComplete ? 'bg-gold' : 'bg-primary'}`}
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -92,7 +97,7 @@ const Index = () => {
         {/* Mobile Tabs */}
         <div className="lg:hidden">
           <Tabs defaultValue="fixture" className="w-full">
-            <TabsList className="w-full mb-4">
+            <TabsList className={`w-full mb-4 ${showPlayoffs ? 'grid-cols-3' : ''}`}>
               <TabsTrigger value="fixture" className="flex-1 gap-2">
                 <Calendar className="w-4 h-4" />
                 Fixture
@@ -101,6 +106,12 @@ const Index = () => {
                 <Trophy className="w-4 h-4" />
                 Tabla
               </TabsTrigger>
+              {showPlayoffs && (
+                <TabsTrigger value="playoffs" className="flex-1 gap-2">
+                  <Crown className="w-4 h-4" />
+                  Playoffs
+                </TabsTrigger>
+              )}
             </TabsList>
             <TabsContent value="fixture">
               <FixtureView
@@ -114,19 +125,41 @@ const Index = () => {
             <TabsContent value="standings">
               <StandingsTable standings={standings} getTeamById={getTeamById} tournamentConfig={tournamentConfig} />
             </TabsContent>
+            {showPlayoffs && (
+              <TabsContent value="playoffs">
+                <PlayoffBracket
+                  standings={standings}
+                  tournamentConfig={tournamentConfig}
+                  getTeamById={getTeamById}
+                  regularSeasonComplete={regularSeasonComplete}
+                />
+              </TabsContent>
+            )}
           </Tabs>
         </div>
         
         {/* Desktop Grid */}
         <div className="hidden lg:grid lg:grid-cols-2 gap-6">
-          <FixtureView
-            matches={matches}
-            totalMatchdays={totalMatchdays}
-            getMatchesByMatchday={getMatchesByMatchday}
-            getTeamById={getTeamById}
-            onPlayMatch={handlePlayMatch}
-          />
-          <StandingsTable standings={standings} getTeamById={getTeamById} tournamentConfig={tournamentConfig} />
+          <div className="space-y-6">
+            <FixtureView
+              matches={matches}
+              totalMatchdays={totalMatchdays}
+              getMatchesByMatchday={getMatchesByMatchday}
+              getTeamById={getTeamById}
+              onPlayMatch={handlePlayMatch}
+            />
+          </div>
+          <div className="space-y-6">
+            <StandingsTable standings={standings} getTeamById={getTeamById} tournamentConfig={tournamentConfig} />
+            {showPlayoffs && (
+              <PlayoffBracket
+                standings={standings}
+                tournamentConfig={tournamentConfig}
+                getTeamById={getTeamById}
+                regularSeasonComplete={regularSeasonComplete}
+              />
+            )}
+          </div>
         </div>
       </main>
       

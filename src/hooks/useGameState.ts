@@ -334,6 +334,12 @@ export const useGameState = () => {
     if (matches.length === 0) return 0;
     return Math.max(...matches.map(m => m.matchday));
   }, [matches]);
+
+  // Check if regular season is complete
+  const regularSeasonComplete = useMemo(() => {
+    if (matches.length === 0) return false;
+    return matches.every(m => m.played);
+  }, [matches]);
   
   // Reset tournament with current config
   const resetTournament = useCallback(() => {
@@ -486,6 +492,7 @@ export const useGameState = () => {
     confirmMatchResult,
     getMatchesByMatchday,
     totalMatchdays,
+    regularSeasonComplete,
     resetTournament,
     updateTournamentConfig,
     applyConfigChanges,
