@@ -57,14 +57,16 @@ export const PlayoffMatchSimulator = ({
   const team2 = getTeamById(match.team2Id)!;
   const levelDiff = match.isNeutralVenue ? 0 : Math.abs(team1.level - team2.level);
 
-  // Calculate aggregate from first leg if this is second leg
-  const leg1Team1Goals = leg1Match?.team1Goals ?? 0;
-  const leg1Team2Goals = leg1Match?.team2Goals ?? 0;
-  
-  // In two-leg format, for leg 1: team1 = lower seed (away in series), team2 = higher seed (home in series)
-  // For leg 2: team1 = higher seed (home in series), team2 = lower seed (away in series)
-  // So aggregate needs to account for this swap
+  // Check if this is a single match series (no return leg)
+  const isOnlyLeg = isSingleLeg || (series && !series.leg2Id);
   const isSecondLeg = match.leg === 2;
+
+  // Get leg 1 goals - these are stored as team1Goals/team2Goals of leg1Match
+  // In leg 1: team1 of match = lower seed, team2 of match = higher seed
+  // In leg 2: team1 of match = higher seed, team2 of match = lower seed
+  // The series tracks team1 = higher seed, team2 = lower seed
+  const leg1Team1Goals = leg1Match?.team1Goals ?? 0; // Lower seed's home goals
+  const leg1Team2Goals = leg1Match?.team2Goals ?? 0; // Higher seed's away goals
 
   const rollDie = (): number => Math.floor(Math.random() * 6) + 1;
   const dieToGoals = (die: number): number => die - 1;
@@ -87,18 +89,19 @@ export const PlayoffMatchSimulator = ({
   };
 
   const checkNeedsPenalties = (team1Goals: number, team2Goals: number): boolean => {
-    if (isSingleLeg) {
-      // Single leg: tie goes to penalties
+    // Single leg or final with no return leg: tie goes to penalties
+    if (isOnlyLeg) {
       return team1Goals === team2Goals;
-    } else if (isSecondLeg) {
+    } else if (isSecondLeg && series) {
       // Second leg: check aggregate
-      // For second leg: team1 is higher seed (was away in leg1, now home)
-      // Leg1: team1 of leg1 was lower seed (home), team2 of leg1 was higher seed (away)
-      // So in leg 2: current team1 = leg1's team2, current team2 = leg1's team1
-      const team1Aggregate = team1Goals + leg1Team2Goals; // Higher seed total (current team1 + leg1 as away)
-      const team2Aggregate = team2Goals + leg1Team1Goals; // Lower seed total (current team2 + leg1 as home)
+      // In leg 2: team1 = series.team1Id (higher seed), team2 = series.team2Id (lower seed)
+      // Leg 1 had: team1 = lower seed (home), team2 = higher seed (away)
+      // So series.team1 aggregate = leg1Team2Goals (away in leg1) + team1Goals (home in leg2)
+      // And series.team2 aggregate = leg1Team1Goals (home in leg1) + team2Goals (away in leg2)
+      const seriesTeam1Aggregate = leg1Team2Goals + team1Goals;
+      const seriesTeam2Aggregate = leg1Team1Goals + team2Goals;
       
-      return team1Aggregate === team2Aggregate;
+      return seriesTeam1Aggregate === seriesTeam2Aggregate;
     }
     return false;
   };
@@ -253,12 +256,14 @@ export const PlayoffMatchSimulator = ({
 
   // Calculate aggregate display for second leg
   const getAggregateDisplay = () => {
-    if (!isSecondLeg || !result) return null;
+    if (!isSecondLeg || !result || !series) return null;
     
-    const team1Agg = result.homeGoals + leg1Team2Goals;
-    const team2Agg = result.awayGoals + leg1Team1Goals;
+    // In leg 2: team1 of match = series.team1Id (higher seed)
+    // Aggregate for series.team1 = leg1Team2Goals (their away goals) + result.homeGoals (their home goals)
+    const seriesTeam1Agg = leg1Team2Goals + result.homeGoals;
+    const seriesTeam2Agg = leg1Team1Goals + result.awayGoals;
     
-    return { team1: team1Agg, team2: team2Agg };
+    return { team1: seriesTeam1Agg, team2: seriesTeam2Agg };
   };
 
   const aggregate = getAggregateDisplay();
