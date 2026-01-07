@@ -75,3 +75,36 @@ export interface MatchResult {
   secondRoll?: { home: number; away: number };
   requiredSecondRoll: boolean;
 }
+
+// Playoff types
+export type PlayoffRound = "quarterfinals" | "semifinals" | "final";
+
+export interface PlayoffMatch {
+  id: string;
+  round: PlayoffRound;
+  matchNumber: number; // Position within round (1, 2, 3, 4 for quarterfinals)
+  leg: 1 | 2; // First leg or second leg
+  team1Id: string | null;
+  team2Id: string | null;
+  team1Goals: number | null;
+  team2Goals: number | null;
+  played: boolean;
+  isNeutralVenue: boolean;
+  firstRoll?: { home: number; away: number };
+  secondRoll?: { home: number; away: number };
+}
+
+export interface PlayoffSeries {
+  id: string;
+  round: PlayoffRound;
+  matchNumber: number;
+  team1Id: string | null;
+  team2Id: string | null;
+  team1Seed: number; // Original position in standings
+  team2Seed: number;
+  leg1Id: string | null;
+  leg2Id: string | null; // null for single-leg format
+  winnerId: string | null;
+  team1Aggregate: number;
+  team2Aggregate: number;
+}
