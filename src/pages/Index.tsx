@@ -17,6 +17,8 @@ const Index = () => {
     teamLevels,
     teamNames,
     tournamentConfig,
+    playoffMatches,
+    playoffSeries,
     getTeamById,
     simulateMatch, 
     confirmMatchResult,
@@ -24,6 +26,9 @@ const Index = () => {
     getMatchesByMatchday,
     totalMatchdays,
     regularSeasonComplete,
+    getPlayoffRoundName,
+    simulatePlayoffMatch,
+    confirmPlayoffMatchResult,
     resetTournament,
     updateTournamentConfig,
     applyConfigChanges,
@@ -39,12 +44,22 @@ const Index = () => {
   } = useGameState();
   
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [selectedPlayoffMatchId, setSelectedPlayoffMatchId] = useState<string | null>(null);
 
   const handlePlayMatch = (matchId: string) => {
     const match = matches.find(m => m.id === matchId);
     if (match && !match.played) {
       setSelectedMatch(match);
     }
+  };
+
+  const handlePlayPlayoffMatch = (matchId: string) => {
+    setSelectedPlayoffMatchId(matchId);
+    const result = simulatePlayoffMatch(matchId);
+    if (result) {
+      confirmPlayoffMatchResult(matchId, result);
+    }
+    setSelectedPlayoffMatchId(null);
   };
 
   const playedMatches = matches.filter(m => m.played).length;
@@ -122,6 +137,11 @@ const Index = () => {
                 getTeamById={getTeamById}
                 onPlayMatch={handlePlayMatch}
                 onSimulateMatchdays={simulateMatchdays}
+                regularSeasonComplete={regularSeasonComplete}
+                tournamentConfig={tournamentConfig}
+                playoffMatches={playoffMatches}
+                getPlayoffRoundName={getPlayoffRoundName}
+                onPlayPlayoffMatch={handlePlayPlayoffMatch}
               />
             </TabsContent>
             <TabsContent value="standings">
@@ -150,6 +170,11 @@ const Index = () => {
               getTeamById={getTeamById}
               onPlayMatch={handlePlayMatch}
               onSimulateMatchdays={simulateMatchdays}
+              regularSeasonComplete={regularSeasonComplete}
+              tournamentConfig={tournamentConfig}
+              playoffMatches={playoffMatches}
+              getPlayoffRoundName={getPlayoffRoundName}
+              onPlayPlayoffMatch={handlePlayPlayoffMatch}
             />
           </div>
           <div className="space-y-6">

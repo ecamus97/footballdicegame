@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { Match, TeamStanding, MatchResult, Team, TournamentConfig, TournamentFormat, InternationalCup } from "@/types/game";
+import { Match, TeamStanding, MatchResult, Team, TournamentConfig, TournamentFormat, InternationalCup, PlayoffMatch, PlayoffSeries, PlayoffRound } from "@/types/game";
 import { teams as defaultTeams } from "@/data/teams";
 
 const STORAGE_KEY = "campeonato-chileno-2026";
@@ -10,6 +10,8 @@ interface SavedGameState {
   teamLevels: Record<string, 1 | 2 | 3 | 4>;
   teamNames: Record<string, { name: string; shortName: string }>;
   tournamentConfig: TournamentConfig;
+  playoffMatches: PlayoffMatch[];
+  playoffSeries: PlayoffSeries[];
   savedAt: string;
 }
 
@@ -140,6 +142,8 @@ export const useGameState = () => {
   const [teamNames, setTeamNames] = useState<Record<string, { name: string; shortName: string }>>(() => getDefaultTeamNames());
   const [matches, setMatches] = useState<Match[]>([]);
   const [standings, setStandings] = useState<Map<string, TeamStanding>>(() => new Map());
+  const [playoffMatches, setPlayoffMatches] = useState<PlayoffMatch[]>([]);
+  const [playoffSeries, setPlayoffSeries] = useState<PlayoffSeries[]>([]);
   const [hasSavedGame, setHasSavedGame] = useState(false);
 
   // Get participating teams with current levels and names
@@ -347,6 +351,373 @@ export const useGameState = () => {
     return matches.every(m => m.played);
   }, [matches]);
 
+  // Generate playoff matches when regular season completes
+  useEffect(() => {
+    if (regularSeasonComplete && tournamentConfig.playoffsEnabled && playoffMatches.length === 0) {
+      const sortedStandingsArr = Array.from(standings.values()).sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
+        return b.goalsFor - a.goalsFor;
+      });
+      
+      const qualifiedTeams = sortedStandingsArr.slice(0, tournamentConfig.playoffsTeams);
+      const format = tournamentConfig.playoffsFormat;
+      const isSingleLeg = format === "single";
+      const isFinalNeutral = format !== "final_only";
+      
+      const newPlayoffMatches: PlayoffMatch[] = [];
+      const newPlayoffSeries: PlayoffSeries[] = [];
+      let matchId = 1;
+      let seriesId = 1;
+      
+      // Determine rounds based on number of teams
+      const rounds: PlayoffRound[] = [];
+      if (tournamentConfig.playoffsTeams >= 8) rounds.push("quarterfinals");
+      if (tournamentConfig.playoffsTeams >= 4) rounds.push("semifinals");
+      rounds.push("final");
+      
+      // Generate first round matchups
+      const firstRound = rounds[0];
+      const teamsInFirstRound = firstRound === "quarterfinals" ? 8 : firstRound === "semifinals" ? 4 : 2;
+      const matchupsInFirstRound = teamsInFirstRound / 2;
+      
+      for (let i = 0; i < matchupsInFirstRound; i++) {
+        const team1Index = i;
+        const team2Index = teamsInFirstRound - 1 - i;
+        const team1 = qualifiedTeams[team1Index];
+        const team2 = qualifiedTeams[team2Index];
+        
+        const isNeutral = firstRound === "final" ? isFinalNeutral : isSingleLeg;
+        
+        // For two-leg format, lower seed plays at home first
+        // For single-leg, higher seed plays at home (neutral for final)
+        const leg1: PlayoffMatch = {
+          id: `playoff-${matchId++}`,
+          round: firstRound,
+          matchNumber: i + 1,
+          leg: 1,
+          team1Id: isSingleLeg ? team1?.teamId : team2?.teamId,
+          team2Id: isSingleLeg ? team2?.teamId : team1?.teamId,
+          team1Goals: null,
+          team2Goals: null,
+          played: false,
+          isNeutralVenue: isNeutral,
+        };
+        newPlayoffMatches.push(leg1);
+        
+        let leg2Id: string | null = null;
+        if (!isSingleLeg) {
+          const leg2: PlayoffMatch = {
+            id: `playoff-${matchId++}`,
+            round: firstRound,
+            matchNumber: i + 1,
+            leg: 2,
+            team1Id: team1?.teamId,
+            team2Id: team2?.teamId,
+            team1Goals: null,
+            team2Goals: null,
+            played: false,
+            isNeutralVenue: firstRound === "final" && isFinalNeutral,
+          };
+          newPlayoffMatches.push(leg2);
+          leg2Id = leg2.id;
+        }
+        
+        const series: PlayoffSeries = {
+          id: `series-${seriesId++}`,
+          round: firstRound,
+          matchNumber: i + 1,
+          team1Id: team1?.teamId,
+          team2Id: team2?.teamId,
+          team1Seed: team1Index + 1,
+          team2Seed: team2Index + 1,
+          leg1Id: leg1.id,
+          leg2Id,
+          winnerId: null,
+          team1Aggregate: 0,
+          team2Aggregate: 0,
+        };
+        newPlayoffSeries.push(series);
+      }
+      
+      // Generate placeholder matches for subsequent rounds
+      for (let roundIdx = 1; roundIdx < rounds.length; roundIdx++) {
+        const round = rounds[roundIdx];
+        const prevRoundMatchups = rounds[roundIdx - 1] === "quarterfinals" ? 4 : 2;
+        const matchupsInRound = prevRoundMatchups / 2;
+        const isNeutral = round === "final" ? isFinalNeutral : isSingleLeg;
+        
+        for (let i = 0; i < matchupsInRound; i++) {
+          const leg1: PlayoffMatch = {
+            id: `playoff-${matchId++}`,
+            round,
+            matchNumber: i + 1,
+            leg: 1,
+            team1Id: null,
+            team2Id: null,
+            team1Goals: null,
+            team2Goals: null,
+            played: false,
+            isNeutralVenue: isNeutral,
+          };
+          newPlayoffMatches.push(leg1);
+          
+          let leg2Id: string | null = null;
+          if (!isSingleLeg && !(round === "final" && isFinalNeutral)) {
+            const leg2: PlayoffMatch = {
+              id: `playoff-${matchId++}`,
+              round,
+              matchNumber: i + 1,
+              leg: 2,
+              team1Id: null,
+              team2Id: null,
+              team1Goals: null,
+              team2Goals: null,
+              played: false,
+              isNeutralVenue: false,
+            };
+            newPlayoffMatches.push(leg2);
+            leg2Id = leg2.id;
+          }
+          
+          const series: PlayoffSeries = {
+            id: `series-${seriesId++}`,
+            round,
+            matchNumber: i + 1,
+            team1Id: null,
+            team2Id: null,
+            team1Seed: 0,
+            team2Seed: 0,
+            leg1Id: leg1.id,
+            leg2Id,
+            winnerId: null,
+            team1Aggregate: 0,
+            team2Aggregate: 0,
+          };
+          newPlayoffSeries.push(series);
+        }
+      }
+      
+      setPlayoffMatches(newPlayoffMatches);
+      setPlayoffSeries(newPlayoffSeries);
+    }
+  }, [regularSeasonComplete, tournamentConfig.playoffsEnabled, tournamentConfig.playoffsTeams, tournamentConfig.playoffsFormat, standings, playoffMatches.length]);
+
+  // Get playoff round display name
+  const getPlayoffRoundName = useCallback((round: PlayoffRound, leg?: number): string => {
+    const names: Record<PlayoffRound, string> = {
+      quarterfinals: "Cuartos de Final",
+      semifinals: "Semifinales",
+      final: "Final",
+    };
+    const legSuffix = leg === 2 ? " (Vuelta)" : leg === 1 && tournamentConfig.playoffsFormat !== "single" ? " (Ida)" : "";
+    return names[round] + legSuffix;
+  }, [tournamentConfig.playoffsFormat]);
+
+  // Simulate playoff match
+  const simulatePlayoffMatch = useCallback((matchId: string): MatchResult | null => {
+    const match = playoffMatches.find(m => m.id === matchId);
+    if (!match || match.played || !match.team1Id || !match.team2Id) return null;
+    
+    const team1 = getTeamById(match.team1Id)!;
+    const team2 = getTeamById(match.team2Id)!;
+    
+    // For neutral venue, use level 2 for both (no home advantage)
+    const effectiveTeam1 = match.isNeutralVenue ? { ...team1, level: 2 as const } : team1;
+    const effectiveTeam2 = match.isNeutralVenue ? { ...team2, level: 2 as const } : team2;
+    
+    const firstTeam1Roll = rollDie();
+    const firstTeam2Roll = rollDie();
+    const firstTeam1Goals = dieToGoals(firstTeam1Roll);
+    const firstTeam2Goals = dieToGoals(firstTeam2Roll);
+    
+    const requiresSecond = !match.isNeutralVenue && needsSecondRoll(effectiveTeam1, effectiveTeam2, firstTeam1Goals, firstTeam2Goals);
+    
+    let finalTeam1Goals = firstTeam1Goals;
+    let finalTeam2Goals = firstTeam2Goals;
+    let secondRoll: { home: number; away: number } | undefined;
+    
+    if (requiresSecond) {
+      const secondTeam1Roll = rollDie();
+      const secondTeam2Roll = rollDie();
+      finalTeam1Goals = dieToGoals(secondTeam1Roll);
+      finalTeam2Goals = dieToGoals(secondTeam2Roll);
+      secondRoll = { home: secondTeam1Roll, away: secondTeam2Roll };
+    }
+    
+    return {
+      homeGoals: finalTeam1Goals,
+      awayGoals: finalTeam2Goals,
+      firstRoll: { home: firstTeam1Roll, away: firstTeam2Roll },
+      secondRoll,
+      requiredSecondRoll: requiresSecond,
+    };
+  }, [playoffMatches, getTeamById, rollDie, dieToGoals, needsSecondRoll]);
+
+  // Confirm playoff match result
+  const confirmPlayoffMatchResult = useCallback((matchId: string, result: MatchResult) => {
+    const match = playoffMatches.find(m => m.id === matchId);
+    if (!match) return;
+    
+    // Update the match
+    setPlayoffMatches(prev => prev.map(m => {
+      if (m.id !== matchId) return m;
+      return {
+        ...m,
+        team1Goals: result.homeGoals,
+        team2Goals: result.awayGoals,
+        played: true,
+        firstRoll: result.firstRoll,
+        secondRoll: result.secondRoll,
+      };
+    }));
+    
+    // Update series aggregate and check for winner
+    const series = playoffSeries.find(s => s.leg1Id === matchId || s.leg2Id === matchId);
+    if (!series) return;
+    
+    setPlayoffSeries(prev => {
+      const newSeries = prev.map(s => {
+        if (s.id !== series.id) return s;
+        
+        const updatedSeries = { ...s };
+        
+        // Update aggregate based on which leg
+        if (s.leg1Id === matchId) {
+          // Leg 1: team1Id of match corresponds to lower seed (away first in two-leg)
+          const isSwapped = tournamentConfig.playoffsFormat !== "single";
+          if (isSwapped) {
+            updatedSeries.team2Aggregate += result.homeGoals;
+            updatedSeries.team1Aggregate += result.awayGoals;
+          } else {
+            updatedSeries.team1Aggregate += result.homeGoals;
+            updatedSeries.team2Aggregate += result.awayGoals;
+          }
+        } else if (s.leg2Id === matchId) {
+          // Leg 2: team1Id of match is the higher seed (home)
+          updatedSeries.team1Aggregate += result.homeGoals;
+          updatedSeries.team2Aggregate += result.awayGoals;
+        }
+        
+        // Check if series is complete
+        const leg1Match = playoffMatches.find(m => m.id === s.leg1Id);
+        const leg2Match = s.leg2Id ? playoffMatches.find(m => m.id === s.leg2Id) : null;
+        const leg1Played = leg1Match?.played || matchId === s.leg1Id;
+        const leg2Played = !s.leg2Id || leg2Match?.played || matchId === s.leg2Id;
+        
+        if (leg1Played && leg2Played) {
+          // Determine winner
+          if (updatedSeries.team1Aggregate > updatedSeries.team2Aggregate) {
+            updatedSeries.winnerId = s.team1Id;
+          } else if (updatedSeries.team2Aggregate > updatedSeries.team1Aggregate) {
+            updatedSeries.winnerId = s.team2Id;
+          } else {
+            // Tie - away goals rule or penalties (simplified: random winner)
+            updatedSeries.winnerId = Math.random() > 0.5 ? s.team1Id : s.team2Id;
+          }
+        }
+        
+        return updatedSeries;
+      });
+      
+      // Advance winner to next round
+      const updatedCurrentSeries = newSeries.find(s => s.id === series.id);
+      if (updatedCurrentSeries?.winnerId) {
+        const currentRound = updatedCurrentSeries.round;
+        const nextRound: PlayoffRound | null = currentRound === "quarterfinals" ? "semifinals" : currentRound === "semifinals" ? "final" : null;
+        
+        if (nextRound) {
+          // Find the next round series that should receive this winner
+          const matchNum = updatedCurrentSeries.matchNumber;
+          const nextMatchNum = Math.ceil(matchNum / 2);
+          const isTeam1 = matchNum % 2 === 1;
+          
+          return newSeries.map(s => {
+            if (s.round === nextRound && s.matchNumber === nextMatchNum) {
+              const updated = { ...s };
+              if (isTeam1) {
+                updated.team1Id = updatedCurrentSeries.winnerId;
+                updated.team1Seed = updatedCurrentSeries.team1Id === updatedCurrentSeries.winnerId ? updatedCurrentSeries.team1Seed : updatedCurrentSeries.team2Seed;
+              } else {
+                updated.team2Id = updatedCurrentSeries.winnerId;
+                updated.team2Seed = updatedCurrentSeries.team1Id === updatedCurrentSeries.winnerId ? updatedCurrentSeries.team1Seed : updatedCurrentSeries.team2Seed;
+              }
+              return updated;
+            }
+            return s;
+          });
+        }
+      }
+      
+      return newSeries;
+    });
+    
+    // Also update playoff matches with teams for next round
+    setTimeout(() => {
+      setPlayoffMatches(prev => {
+        const updatedSeries = playoffSeries.find(s => s.leg1Id === matchId || s.leg2Id === matchId);
+        if (!updatedSeries) return prev;
+        
+        // Check if the series is complete now
+        const leg1Match = prev.find(m => m.id === updatedSeries.leg1Id);
+        const leg2Match = updatedSeries.leg2Id ? prev.find(m => m.id === updatedSeries.leg2Id) : null;
+        if (!leg1Match?.played) return prev;
+        if (updatedSeries.leg2Id && !leg2Match?.played) return prev;
+        
+        // Series is complete, find next round matches
+        const currentRound = updatedSeries.round;
+        const nextRound: PlayoffRound | null = currentRound === "quarterfinals" ? "semifinals" : currentRound === "semifinals" ? "final" : null;
+        
+        if (!nextRound) return prev;
+        
+        // Calculate aggregate
+        let team1Agg = 0;
+        let team2Agg = 0;
+        
+        if (leg1Match) {
+          const isSwapped = tournamentConfig.playoffsFormat !== "single";
+          if (isSwapped) {
+            team2Agg += leg1Match.team1Goals || 0;
+            team1Agg += leg1Match.team2Goals || 0;
+          } else {
+            team1Agg += leg1Match.team1Goals || 0;
+            team2Agg += leg1Match.team2Goals || 0;
+          }
+        }
+        if (leg2Match) {
+          team1Agg += leg2Match.team1Goals || 0;
+          team2Agg += leg2Match.team2Goals || 0;
+        }
+        
+        let winnerId: string | null;
+        if (team1Agg > team2Agg) {
+          winnerId = updatedSeries.team1Id;
+        } else if (team2Agg > team1Agg) {
+          winnerId = updatedSeries.team2Id;
+        } else {
+          winnerId = Math.random() > 0.5 ? updatedSeries.team1Id : updatedSeries.team2Id;
+        }
+        
+        const matchNum = updatedSeries.matchNumber;
+        const nextMatchNum = Math.ceil(matchNum / 2);
+        const isTeam1 = matchNum % 2 === 1;
+        
+        return prev.map(m => {
+          if (m.round === nextRound && m.matchNumber === nextMatchNum) {
+            const updated = { ...m };
+            if (isTeam1) {
+              updated.team1Id = winnerId;
+            } else {
+              updated.team2Id = winnerId;
+            }
+            return updated;
+          }
+          return m;
+        });
+      });
+    }, 100);
+  }, [playoffMatches, playoffSeries, tournamentConfig.playoffsFormat]);
+
   // Simulate multiple matchdays at once
   const simulateMatchdays = useCallback((numMatchdays: number) => {
     const unplayedMatches = matches.filter(m => !m.played).sort((a, b) => a.matchday - b.matchday);
@@ -439,6 +810,8 @@ export const useGameState = () => {
       }));
     setMatches(generateFixture(participatingTeams, tournamentConfig.format));
     setStandings(initializeStandings(participatingTeams));
+    setPlayoffMatches([]);
+    setPlayoffSeries([]);
   }, [tournamentConfig, teamLevels]);
 
   // Update tournament config
@@ -493,6 +866,8 @@ export const useGameState = () => {
       teamLevels,
       teamNames,
       tournamentConfig,
+      playoffMatches,
+      playoffSeries,
       savedAt: new Date().toISOString(),
     };
     
@@ -505,7 +880,7 @@ export const useGameState = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
     setHasSavedGame(true);
     return true;
-  }, [matches, standings, teamLevels, teamNames, tournamentConfig]);
+  }, [matches, standings, teamLevels, teamNames, tournamentConfig, playoffMatches, playoffSeries]);
 
   // Load game from localStorage
   const loadGame = useCallback(() => {
@@ -533,6 +908,14 @@ export const useGameState = () => {
       // Restore tournament config (with fallback for old saves)
       if (parsed.tournamentConfig) {
         setTournamentConfig(parsed.tournamentConfig);
+      }
+      
+      // Restore playoff data (with fallback for old saves)
+      if (parsed.playoffMatches) {
+        setPlayoffMatches(parsed.playoffMatches);
+      }
+      if (parsed.playoffSeries) {
+        setPlayoffSeries(parsed.playoffSeries);
       }
       
       return true;
@@ -575,6 +958,8 @@ export const useGameState = () => {
     teamLevels,
     teamNames,
     tournamentConfig,
+    playoffMatches,
+    playoffSeries,
     getTeamById,
     simulateMatch,
     confirmMatchResult,
@@ -582,6 +967,9 @@ export const useGameState = () => {
     getMatchesByMatchday,
     totalMatchdays,
     regularSeasonComplete,
+    getPlayoffRoundName,
+    simulatePlayoffMatch,
+    confirmPlayoffMatchResult,
     resetTournament,
     updateTournamentConfig,
     applyConfigChanges,
