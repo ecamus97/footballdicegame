@@ -4,8 +4,9 @@ import { Header } from "@/components/Header";
 import { FixtureView } from "@/components/FixtureView";
 import { StandingsTable } from "@/components/StandingsTable";
 import { MatchSimulator } from "@/components/MatchSimulator";
+import { PlayoffMatchSimulator } from "@/components/PlayoffMatchSimulator";
 import { PlayoffBracket } from "@/components/PlayoffBracket";
-import { Match } from "@/types/game";
+import { Match, PlayoffMatch } from "@/types/game";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Trophy, Crown } from "lucide-react";
 
@@ -27,8 +28,9 @@ const Index = () => {
     totalMatchdays,
     regularSeasonComplete,
     getPlayoffRoundName,
-    simulatePlayoffMatch,
     confirmPlayoffMatchResult,
+    getSeriesForMatch,
+    getLeg1Match,
     resetTournament,
     updateTournamentConfig,
     applyConfigChanges,
@@ -44,7 +46,7 @@ const Index = () => {
   } = useGameState();
   
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
-  const [selectedPlayoffMatchId, setSelectedPlayoffMatchId] = useState<string | null>(null);
+  const [selectedPlayoffMatch, setSelectedPlayoffMatch] = useState<PlayoffMatch | null>(null);
 
   const handlePlayMatch = (matchId: string) => {
     const match = matches.find(m => m.id === matchId);
@@ -54,12 +56,10 @@ const Index = () => {
   };
 
   const handlePlayPlayoffMatch = (matchId: string) => {
-    setSelectedPlayoffMatchId(matchId);
-    const result = simulatePlayoffMatch(matchId);
-    if (result) {
-      confirmPlayoffMatchResult(matchId, result);
+    const match = playoffMatches.find(m => m.id === matchId);
+    if (match && !match.played && match.team1Id && match.team2Id) {
+      setSelectedPlayoffMatch(match);
     }
-    setSelectedPlayoffMatchId(null);
   };
 
   const playedMatches = matches.filter(m => m.played).length;
@@ -67,6 +67,7 @@ const Index = () => {
   const progress = totalMatches > 0 ? Math.round((playedMatches / totalMatches) * 100) : 0;
   const hasPlayedMatches = playedMatches > 0;
   const showPlayoffs = tournamentConfig.playoffsEnabled && regularSeasonComplete;
+  const isSingleLeg = tournamentConfig.playoffsFormat === "single";
 
   return (
     <div className="min-h-screen bg-background">
@@ -198,6 +199,18 @@ const Index = () => {
         onSimulate={simulateMatch}
         onConfirm={confirmMatchResult}
         onClose={() => setSelectedMatch(null)}
+      />
+      
+      {/* Playoff Match Simulator Modal */}
+      <PlayoffMatchSimulator
+        match={selectedPlayoffMatch}
+        series={selectedPlayoffMatch ? getSeriesForMatch(selectedPlayoffMatch.id) : null}
+        leg1Match={selectedPlayoffMatch ? getLeg1Match(selectedPlayoffMatch.id) : null}
+        getTeamById={getTeamById}
+        getPlayoffRoundName={getPlayoffRoundName}
+        isSingleLeg={isSingleLeg}
+        onConfirm={confirmPlayoffMatchResult}
+        onClose={() => setSelectedPlayoffMatch(null)}
       />
       
       {/* Pitch Pattern Background */}
