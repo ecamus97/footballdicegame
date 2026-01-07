@@ -76,6 +76,13 @@ export interface MatchResult {
   requiredSecondRoll: boolean;
 }
 
+// Penalty shootout
+export interface PenaltyResult {
+  team1Penalties: number;
+  team2Penalties: number;
+  rounds: { team1: number; team2: number }[]; // Each round of penalties
+}
+
 // Playoff types
 export type PlayoffRound = "quarterfinals" | "semifinals" | "final";
 
@@ -92,6 +99,7 @@ export interface PlayoffMatch {
   isNeutralVenue: boolean;
   firstRoll?: { home: number; away: number };
   secondRoll?: { home: number; away: number };
+  penalties?: PenaltyResult; // For matches decided by penalties
 }
 
 export interface PlayoffSeries {

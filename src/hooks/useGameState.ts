@@ -554,8 +554,15 @@ export const useGameState = () => {
     };
   }, [playoffMatches, getTeamById, rollDie, dieToGoals, needsSecondRoll]);
 
+  // Extended result type for playoffs (includes penalties)
+  interface PlayoffMatchResultExtended extends MatchResult {
+    needsPenalties?: boolean;
+    penalties?: { team1Penalties: number; team2Penalties: number; rounds: { team1: number; team2: number }[] };
+    winnerId?: string;
+  }
+
   // Confirm playoff match result
-  const confirmPlayoffMatchResult = useCallback((matchId: string, result: MatchResult) => {
+  const confirmPlayoffMatchResult = useCallback((matchId: string, result: PlayoffMatchResultExtended) => {
     const match = playoffMatches.find(m => m.id === matchId);
     if (!match) return;
     
@@ -569,12 +576,17 @@ export const useGameState = () => {
         played: true,
         firstRoll: result.firstRoll,
         secondRoll: result.secondRoll,
+        penalties: result.penalties,
       };
     }));
     
     // Update series aggregate and check for winner
     const series = playoffSeries.find(s => s.leg1Id === matchId || s.leg2Id === matchId);
     if (!series) return;
+    
+    const isSingleLeg = tournamentConfig.playoffsFormat === "single";
+    const isFinalNeutral = tournamentConfig.playoffsFormat !== "final_only" && match.round === "final";
+    const isOnlyLeg = isSingleLeg || (isFinalNeutral && match.round === "final") || !series.leg2Id;
     
     setPlayoffSeries(prev => {
       const newSeries = prev.map(s => {
@@ -585,7 +597,7 @@ export const useGameState = () => {
         // Update aggregate based on which leg
         if (s.leg1Id === matchId) {
           // Leg 1: team1Id of match corresponds to lower seed (away first in two-leg)
-          const isSwapped = tournamentConfig.playoffsFormat !== "single";
+          const isSwapped = tournamentConfig.playoffsFormat !== "single" && !isOnlyLeg;
           if (isSwapped) {
             updatedSeries.team2Aggregate += result.homeGoals;
             updatedSeries.team1Aggregate += result.awayGoals;
@@ -607,13 +619,16 @@ export const useGameState = () => {
         
         if (leg1Played && leg2Played) {
           // Determine winner
-          if (updatedSeries.team1Aggregate > updatedSeries.team2Aggregate) {
+          if (result.winnerId) {
+            // Winner was determined by penalties
+            updatedSeries.winnerId = result.winnerId;
+          } else if (updatedSeries.team1Aggregate > updatedSeries.team2Aggregate) {
             updatedSeries.winnerId = s.team1Id;
           } else if (updatedSeries.team2Aggregate > updatedSeries.team1Aggregate) {
             updatedSeries.winnerId = s.team2Id;
           } else {
-            // Tie - away goals rule or penalties (simplified: random winner)
-            updatedSeries.winnerId = Math.random() > 0.5 ? s.team1Id : s.team2Id;
+            // This shouldn't happen if penalties were handled correctly
+            updatedSeries.winnerId = result.homeGoals > result.awayGoals ? match.team1Id : match.team2Id;
           }
         }
         
@@ -658,45 +673,62 @@ export const useGameState = () => {
         const updatedSeries = playoffSeries.find(s => s.leg1Id === matchId || s.leg2Id === matchId);
         if (!updatedSeries) return prev;
         
-        // Check if the series is complete now
-        const leg1Match = prev.find(m => m.id === updatedSeries.leg1Id);
-        const leg2Match = updatedSeries.leg2Id ? prev.find(m => m.id === updatedSeries.leg2Id) : null;
-        if (!leg1Match?.played) return prev;
-        if (updatedSeries.leg2Id && !leg2Match?.played) return prev;
+        // Get the winner from the result or calculate
+        let winnerId = result.winnerId;
+        
+        if (!winnerId) {
+          // Check if the series is complete now
+          const leg1Match = prev.find(m => m.id === updatedSeries.leg1Id);
+          const leg2Match = updatedSeries.leg2Id ? prev.find(m => m.id === updatedSeries.leg2Id) : null;
+          
+          const isComplete = (leg1Match?.played || matchId === updatedSeries.leg1Id) && 
+                            (!updatedSeries.leg2Id || leg2Match?.played || matchId === updatedSeries.leg2Id);
+          
+          if (!isComplete) return prev;
+          
+          // Calculate aggregate
+          let team1Agg = 0;
+          let team2Agg = 0;
+          
+          const isSwapped = tournamentConfig.playoffsFormat !== "single" && updatedSeries.leg2Id;
+          
+          if (leg1Match?.played || matchId === updatedSeries.leg1Id) {
+            const l1Goals = matchId === updatedSeries.leg1Id 
+              ? { t1: result.homeGoals, t2: result.awayGoals }
+              : { t1: leg1Match!.team1Goals || 0, t2: leg1Match!.team2Goals || 0 };
+            
+            if (isSwapped) {
+              team2Agg += l1Goals.t1;
+              team1Agg += l1Goals.t2;
+            } else {
+              team1Agg += l1Goals.t1;
+              team2Agg += l1Goals.t2;
+            }
+          }
+          
+          if (leg2Match?.played || matchId === updatedSeries.leg2Id) {
+            const l2Goals = matchId === updatedSeries.leg2Id
+              ? { t1: result.homeGoals, t2: result.awayGoals }
+              : { t1: leg2Match!.team1Goals || 0, t2: leg2Match!.team2Goals || 0 };
+            
+            team1Agg += l2Goals.t1;
+            team2Agg += l2Goals.t2;
+          }
+          
+          if (team1Agg > team2Agg) {
+            winnerId = updatedSeries.team1Id;
+          } else if (team2Agg > team1Agg) {
+            winnerId = updatedSeries.team2Id;
+          }
+        }
+        
+        if (!winnerId) return prev;
         
         // Series is complete, find next round matches
         const currentRound = updatedSeries.round;
         const nextRound: PlayoffRound | null = currentRound === "quarterfinals" ? "semifinals" : currentRound === "semifinals" ? "final" : null;
         
         if (!nextRound) return prev;
-        
-        // Calculate aggregate
-        let team1Agg = 0;
-        let team2Agg = 0;
-        
-        if (leg1Match) {
-          const isSwapped = tournamentConfig.playoffsFormat !== "single";
-          if (isSwapped) {
-            team2Agg += leg1Match.team1Goals || 0;
-            team1Agg += leg1Match.team2Goals || 0;
-          } else {
-            team1Agg += leg1Match.team1Goals || 0;
-            team2Agg += leg1Match.team2Goals || 0;
-          }
-        }
-        if (leg2Match) {
-          team1Agg += leg2Match.team1Goals || 0;
-          team2Agg += leg2Match.team2Goals || 0;
-        }
-        
-        let winnerId: string | null;
-        if (team1Agg > team2Agg) {
-          winnerId = updatedSeries.team1Id;
-        } else if (team2Agg > team1Agg) {
-          winnerId = updatedSeries.team2Id;
-        } else {
-          winnerId = Math.random() > 0.5 ? updatedSeries.team1Id : updatedSeries.team2Id;
-        }
         
         const matchNum = updatedSeries.matchNumber;
         const nextMatchNum = Math.ceil(matchNum / 2);
@@ -717,6 +749,18 @@ export const useGameState = () => {
       });
     }, 100);
   }, [playoffMatches, playoffSeries, tournamentConfig.playoffsFormat]);
+
+  // Get series for a match
+  const getSeriesForMatch = useCallback((matchId: string) => {
+    return playoffSeries.find(s => s.leg1Id === matchId || s.leg2Id === matchId) || null;
+  }, [playoffSeries]);
+
+  // Get leg 1 match for a given match
+  const getLeg1Match = useCallback((matchId: string) => {
+    const series = playoffSeries.find(s => s.leg2Id === matchId);
+    if (!series) return null;
+    return playoffMatches.find(m => m.id === series.leg1Id) || null;
+  }, [playoffMatches, playoffSeries]);
 
   // Simulate multiple matchdays at once
   const simulateMatchdays = useCallback((numMatchdays: number) => {
@@ -970,6 +1014,8 @@ export const useGameState = () => {
     getPlayoffRoundName,
     simulatePlayoffMatch,
     confirmPlayoffMatchResult,
+    getSeriesForMatch,
+    getLeg1Match,
     resetTournament,
     updateTournamentConfig,
     applyConfigChanges,
