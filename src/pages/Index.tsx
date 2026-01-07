@@ -19,7 +19,8 @@ const Index = () => {
     tournamentConfig,
     getTeamById,
     simulateMatch, 
-    confirmMatchResult, 
+    confirmMatchResult,
+    simulateMatchdays,
     getMatchesByMatchday,
     totalMatchdays,
     regularSeasonComplete,
@@ -120,6 +121,7 @@ const Index = () => {
                 getMatchesByMatchday={getMatchesByMatchday}
                 getTeamById={getTeamById}
                 onPlayMatch={handlePlayMatch}
+                onSimulateMatchdays={simulateMatchdays}
               />
             </TabsContent>
             <TabsContent value="standings">
@@ -147,6 +149,7 @@ const Index = () => {
               getMatchesByMatchday={getMatchesByMatchday}
               getTeamById={getTeamById}
               onPlayMatch={handlePlayMatch}
+              onSimulateMatchdays={simulateMatchdays}
             />
           </div>
           <div className="space-y-6">
