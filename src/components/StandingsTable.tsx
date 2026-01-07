@@ -16,19 +16,20 @@ export const StandingsTable = ({ standings, getTeamById, tournamentConfig }: Sta
   // Playoffs zone
   const playoffsEnd = tournamentConfig.playoffsEnabled ? tournamentConfig.playoffsTeams : 0;
   
-  // International cups zones - calculate cumulative positions
+  // International cups zones - START FROM POSITION 1, NOT after playoffs!
+  // Cups and playoffs can overlap (both apply to top positions)
   const cupZones: { name: string; start: number; end: number; color: string }[] = [];
-  let currentPosition = playoffsEnd + 1;
+  let currentCupPosition = 1; // Always start from position 1
   
   for (const cup of tournamentConfig.internationalCups) {
     if (cup.spots > 0) {
       cupZones.push({
         name: cup.name,
-        start: currentPosition,
-        end: currentPosition + cup.spots - 1,
+        start: currentCupPosition,
+        end: currentCupPosition + cup.spots - 1,
         color: cup.color,
       });
-      currentPosition += cup.spots;
+      currentCupPosition += cup.spots;
     }
   }
   
@@ -43,40 +44,64 @@ export const StandingsTable = ({ standings, getTeamById, tournamentConfig }: Sta
   // Relegation zone
   const relegationStart = totalTeams - tournamentConfig.relegationSpots + 1;
 
+  // Check if position is in a cup zone
+  const getCupForPosition = (position: number) => {
+    for (const cup of cupZones) {
+      if (position >= cup.start && position <= cup.end) {
+        return cup;
+      }
+    }
+    return null;
+  };
+
   const getPositionStyle = (position: number) => {
-    // Champion
+    const isPlayoffs = tournamentConfig.playoffsEnabled && position <= playoffsEnd;
+    const cup = getCupForPosition(position);
+    const isPromotion = tournamentConfig.promotionPlayoffEnabled && 
+                        position >= promotionPlayoffStart && 
+                        position <= promotionPlayoffEnd;
+    const isRelegation = tournamentConfig.relegationSpots > 0 && position >= relegationStart;
+
+    // Priority: Champion > Relegation > Promotion > Cup+Playoffs combined > Playoffs only > Cup only
     if (position === 1) {
+      // Champion - show both playoff (if enabled) and cup indicators
+      if (isPlayoffs && cup) {
+        return "bg-gradient-to-r from-gold/20 via-purple-500/10 to-green-500/10 border-l-4 border-l-gold";
+      }
       return "bg-gold/10 border-l-4 border-l-gold";
     }
     
-    // Playoffs zone
-    if (tournamentConfig.playoffsEnabled && position <= playoffsEnd) {
-      return "bg-purple-500/10 border-l-4 border-l-purple-500";
+    if (isRelegation) {
+      return "bg-destructive/10 border-l-4 border-l-destructive";
     }
     
-    // International cups zones
-    for (const cup of cupZones) {
-      if (position >= cup.start && position <= cup.end) {
-        return `${cup.color} border-l-4`;
-      }
-    }
-    
-    // Promotion/relegation playoff zone
-    if (tournamentConfig.promotionPlayoffEnabled && 
-        position >= promotionPlayoffStart && 
-        position <= promotionPlayoffEnd) {
+    if (isPromotion) {
       return "bg-orange-500/10 border-l-4 border-l-orange-500";
     }
     
-    // Relegation zone
-    if (tournamentConfig.relegationSpots > 0 && position >= relegationStart) {
-      return "bg-destructive/10 border-l-4 border-l-destructive";
+    // Both playoffs AND cup zone
+    if (isPlayoffs && cup) {
+      const cupBgColor = cup.color.split(" ")[0];
+      return `bg-gradient-to-r from-purple-500/10 to-green-500/10 border-l-4 border-l-purple-500`;
+    }
+    
+    // Only playoffs
+    if (isPlayoffs) {
+      return "bg-purple-500/10 border-l-4 border-l-purple-500";
+    }
+    
+    // Only cup zone
+    if (cup) {
+      return `${cup.color} border-l-4`;
     }
     
     return "";
   };
 
   const getPositionIcon = (position: number) => {
+    const isPlayoffs = tournamentConfig.playoffsEnabled && position <= playoffsEnd;
+    const cup = getCupForPosition(position);
+    
     if (position === 1) {
       return <Trophy className="w-4 h-4 text-gold" />;
     }
@@ -86,14 +111,25 @@ export const StandingsTable = ({ standings, getTeamById, tournamentConfig }: Sta
     if (position === 3) {
       return <Medal className="w-4 h-4 text-amber-600" />;
     }
-    if (tournamentConfig.playoffsEnabled && position <= playoffsEnd) {
+    
+    // Show both icons if position qualifies for playoffs AND cup
+    if (isPlayoffs && cup) {
+      return (
+        <div className="flex items-center gap-0.5">
+          <Star className="w-3 h-3 text-purple-500" />
+          <Globe className="w-3 h-3 text-green-500" />
+        </div>
+      );
+    }
+    
+    if (isPlayoffs) {
       return <Star className="w-4 h-4 text-purple-500" />;
     }
-    for (const cup of cupZones) {
-      if (position >= cup.start && position <= cup.end) {
-        return <Globe className="w-4 h-4 text-green-500" />;
-      }
+    
+    if (cup) {
+      return <Globe className="w-4 h-4 text-green-500" />;
     }
+    
     if (tournamentConfig.promotionPlayoffEnabled && 
         position >= promotionPlayoffStart && 
         position <= promotionPlayoffEnd) {
