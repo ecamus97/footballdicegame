@@ -225,10 +225,9 @@ export const useGameState = () => {
     return !strongerWins;
   }, []);
   
-  // Simulate a match
-  const simulateMatch = useCallback((matchId: string): MatchResult | null => {
-    const match = matches.find(m => m.id === matchId);
-    if (!match || match.played) return null;
+  // Internal function to simulate and get result for a match (without confirmation)
+  const getMatchSimulationResult = useCallback((match: Match): MatchResult | null => {
+    if (match.played) return null;
     
     const homeTeam = getTeamById(match.homeTeamId)!;
     const awayTeam = getTeamById(match.awayTeamId)!;
@@ -259,7 +258,14 @@ export const useGameState = () => {
       secondRoll,
       requiredSecondRoll: requiresSecond,
     };
-  }, [matches, getTeamById, rollDie, dieToGoals, needsSecondRoll]);
+  }, [getTeamById, rollDie, dieToGoals, needsSecondRoll]);
+
+  // Simulate a match (for interactive simulation with modal)
+  const simulateMatch = useCallback((matchId: string): MatchResult | null => {
+    const match = matches.find(m => m.id === matchId);
+    if (!match || match.played) return null;
+    return getMatchSimulationResult(match);
+  }, [matches, getMatchSimulationResult]);
   
   // Confirm match result
   const confirmMatchResult = useCallback((matchId: string, result: MatchResult) => {
@@ -340,6 +346,88 @@ export const useGameState = () => {
     if (matches.length === 0) return false;
     return matches.every(m => m.played);
   }, [matches]);
+
+  // Simulate multiple matchdays at once
+  const simulateMatchdays = useCallback((numMatchdays: number) => {
+    const unplayedMatches = matches.filter(m => !m.played).sort((a, b) => a.matchday - b.matchday);
+    if (unplayedMatches.length === 0) return 0;
+
+    // Get the matchdays to simulate
+    const currentMatchday = unplayedMatches[0].matchday;
+    const lastMatchday = Math.min(currentMatchday + numMatchdays - 1, totalMatchdays);
+    
+    const matchesToSimulate = unplayedMatches.filter(m => m.matchday <= lastMatchday);
+    
+    // Simulate all matches and collect results
+    const results: { matchId: string; result: MatchResult }[] = [];
+    
+    for (const match of matchesToSimulate) {
+      const result = getMatchSimulationResult(match);
+      if (result) {
+        results.push({ matchId: match.id, result });
+      }
+    }
+
+    // Apply all results at once
+    setMatches(prev => prev.map(match => {
+      const simResult = results.find(r => r.matchId === match.id);
+      if (!simResult) return match;
+      
+      return {
+        ...match,
+        homeGoals: simResult.result.homeGoals,
+        awayGoals: simResult.result.awayGoals,
+        played: true,
+        firstRoll: simResult.result.firstRoll,
+        secondRoll: simResult.result.secondRoll,
+      };
+    }));
+
+    // Update standings for all simulated matches
+    setStandings(prev => {
+      const newStandings = new Map(prev);
+      
+      for (const { matchId, result } of results) {
+        const match = matches.find(m => m.id === matchId)!;
+        
+        const homeStanding = { ...newStandings.get(match.homeTeamId)! };
+        const awayStanding = { ...newStandings.get(match.awayTeamId)! };
+        
+        homeStanding.played++;
+        awayStanding.played++;
+        
+        homeStanding.goalsFor += result.homeGoals;
+        homeStanding.goalsAgainst += result.awayGoals;
+        awayStanding.goalsFor += result.awayGoals;
+        awayStanding.goalsAgainst += result.homeGoals;
+        
+        if (result.homeGoals > result.awayGoals) {
+          homeStanding.won++;
+          homeStanding.points += 3;
+          awayStanding.lost++;
+        } else if (result.awayGoals > result.homeGoals) {
+          awayStanding.won++;
+          awayStanding.points += 3;
+          homeStanding.lost++;
+        } else {
+          homeStanding.drawn++;
+          awayStanding.drawn++;
+          homeStanding.points++;
+          awayStanding.points++;
+        }
+        
+        homeStanding.goalDifference = homeStanding.goalsFor - homeStanding.goalsAgainst;
+        awayStanding.goalDifference = awayStanding.goalsFor - awayStanding.goalsAgainst;
+        
+        newStandings.set(match.homeTeamId, homeStanding);
+        newStandings.set(match.awayTeamId, awayStanding);
+      }
+      
+      return newStandings;
+    });
+
+    return results.length;
+  }, [matches, totalMatchdays, getMatchSimulationResult]);
   
   // Reset tournament with current config
   const resetTournament = useCallback(() => {
@@ -490,6 +578,7 @@ export const useGameState = () => {
     getTeamById,
     simulateMatch,
     confirmMatchResult,
+    simulateMatchdays,
     getMatchesByMatchday,
     totalMatchdays,
     regularSeasonComplete,

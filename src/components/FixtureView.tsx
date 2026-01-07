@@ -3,7 +3,15 @@ import { Match, Team } from "@/types/game";
 import { MatchCard } from "./MatchCard";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, FastForward, Play } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "@/hooks/use-toast";
 
 interface FixtureViewProps {
   matches: Match[];
@@ -11,6 +19,7 @@ interface FixtureViewProps {
   getMatchesByMatchday: (matchday: number) => Match[];
   getTeamById: (id: string) => Team | undefined;
   onPlayMatch: (matchId: string) => void;
+  onSimulateMatchdays?: (numMatchdays: number) => number;
 }
 
 export const FixtureView = ({ 
@@ -18,7 +27,8 @@ export const FixtureView = ({
   totalMatchdays, 
   getMatchesByMatchday,
   getTeamById,
-  onPlayMatch 
+  onPlayMatch,
+  onSimulateMatchdays,
 }: FixtureViewProps) => {
   const [currentMatchday, setCurrentMatchday] = useState(1);
   
@@ -28,6 +38,22 @@ export const FixtureView = ({
   
   const isFirstHalf = currentMatchday <= totalMatchdays / 2;
 
+  // Calculate remaining matchdays
+  const unplayedMatches = matches.filter(m => !m.played);
+  const remainingMatchdays = unplayedMatches.length > 0 
+    ? new Set(unplayedMatches.map(m => m.matchday)).size 
+    : 0;
+
+  const handleSimulate = (num: number) => {
+    if (onSimulateMatchdays) {
+      const simulated = onSimulateMatchdays(num);
+      toast({
+        title: "Simulación completada",
+        description: `Se simularon ${simulated} partidos.`,
+      });
+    }
+  };
+
   return (
     <div className="bg-card rounded-xl border shadow-card overflow-hidden">
       <div className="bg-primary text-primary-foreground p-4">
@@ -36,9 +62,47 @@ export const FixtureView = ({
             <Calendar className="w-6 h-6" />
             Fixture
           </h2>
-          <span className="text-sm opacity-80">
-            {isFirstHalf ? "Primera Rueda" : "Segunda Rueda"}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm opacity-80">
+              {isFirstHalf ? "Primera Rueda" : "Segunda Rueda"}
+            </span>
+            {onSimulateMatchdays && remainingMatchdays > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="secondary" 
+                    size="sm"
+                    className="gap-1 h-7 text-xs"
+                  >
+                    <FastForward className="w-3 h-3" />
+                    Simular
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleSimulate(1)}>
+                    <Play className="w-4 h-4 mr-2" />
+                    Simular 1 fecha
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleSimulate(5)}>
+                    <FastForward className="w-4 h-4 mr-2" />
+                    Simular 5 fechas
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleSimulate(10)}>
+                    <FastForward className="w-4 h-4 mr-2" />
+                    Simular 10 fechas
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={() => handleSimulate(remainingMatchdays)}
+                    className="text-primary font-medium"
+                  >
+                    <FastForward className="w-4 h-4 mr-2" />
+                    Simular TODO ({remainingMatchdays} fechas)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
       </div>
       
