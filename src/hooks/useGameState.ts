@@ -594,19 +594,30 @@ export const useGameState = () => {
         
         const updatedSeries = { ...s };
         
-        // Update aggregate based on which leg
+        // For two-leg format:
+        // - Leg 1: match.team1Id = lower seed (home), match.team2Id = higher seed (away)
+        //   So leg 1 goals: team1Goals = lower seed goals, team2Goals = higher seed goals
+        // - Leg 2: match.team1Id = higher seed (home), match.team2Id = lower seed (away)
+        //   So leg 2 goals: team1Goals = higher seed goals, team2Goals = lower seed goals
+        // - Series: team1Id = higher seed, team2Id = lower seed
+        
         if (s.leg1Id === matchId) {
-          // Leg 1: team1Id of match corresponds to lower seed (away first in two-leg)
-          const isSwapped = tournamentConfig.playoffsFormat !== "single" && !isOnlyLeg;
-          if (isSwapped) {
-            updatedSeries.team2Aggregate += result.homeGoals;
-            updatedSeries.team1Aggregate += result.awayGoals;
+          // This is leg 1 - match.team1 = lower seed, match.team2 = higher seed
+          // So for series aggregate: series.team1 (higher seed) gets result.awayGoals
+          //                          series.team2 (lower seed) gets result.homeGoals
+          if (!isOnlyLeg) {
+            // Two-leg format - teams are swapped in leg 1
+            updatedSeries.team1Aggregate += result.awayGoals; // Higher seed's away goals
+            updatedSeries.team2Aggregate += result.homeGoals; // Lower seed's home goals
           } else {
+            // Single leg - no swap
             updatedSeries.team1Aggregate += result.homeGoals;
             updatedSeries.team2Aggregate += result.awayGoals;
           }
         } else if (s.leg2Id === matchId) {
-          // Leg 2: team1Id of match is the higher seed (home)
+          // This is leg 2 - match.team1 = higher seed (home), match.team2 = lower seed (away)
+          // So for series aggregate: series.team1 (higher seed) gets result.homeGoals
+          //                          series.team2 (lower seed) gets result.awayGoals
           updatedSeries.team1Aggregate += result.homeGoals;
           updatedSeries.team2Aggregate += result.awayGoals;
         }
@@ -627,7 +638,8 @@ export const useGameState = () => {
           } else if (updatedSeries.team2Aggregate > updatedSeries.team1Aggregate) {
             updatedSeries.winnerId = s.team2Id;
           } else {
-            // This shouldn't happen if penalties were handled correctly
+            // Tied on aggregate - shouldn't happen if penalties were handled correctly
+            // But as fallback, use last match winner
             updatedSeries.winnerId = result.homeGoals > result.awayGoals ? match.team1Id : match.team2Id;
           }
         }
@@ -686,20 +698,22 @@ export const useGameState = () => {
           
           if (!isComplete) return prev;
           
-          // Calculate aggregate
+          // Calculate aggregate using same logic as series update
           let team1Agg = 0;
           let team2Agg = 0;
           
-          const isSwapped = tournamentConfig.playoffsFormat !== "single" && updatedSeries.leg2Id;
+          const hasTwoLegs = !!updatedSeries.leg2Id;
           
           if (leg1Match?.played || matchId === updatedSeries.leg1Id) {
             const l1Goals = matchId === updatedSeries.leg1Id 
               ? { t1: result.homeGoals, t2: result.awayGoals }
               : { t1: leg1Match!.team1Goals || 0, t2: leg1Match!.team2Goals || 0 };
             
-            if (isSwapped) {
-              team2Agg += l1Goals.t1;
-              team1Agg += l1Goals.t2;
+            if (hasTwoLegs) {
+              // Leg 1 teams are swapped: match.team1 = lower seed, match.team2 = higher seed
+              // series.team1 = higher seed, series.team2 = lower seed
+              team1Agg += l1Goals.t2; // Higher seed's away goals
+              team2Agg += l1Goals.t1; // Lower seed's home goals
             } else {
               team1Agg += l1Goals.t1;
               team2Agg += l1Goals.t2;
@@ -711,6 +725,7 @@ export const useGameState = () => {
               ? { t1: result.homeGoals, t2: result.awayGoals }
               : { t1: leg2Match!.team1Goals || 0, t2: leg2Match!.team2Goals || 0 };
             
+            // Leg 2: match.team1 = higher seed (home), match.team2 = lower seed (away)
             team1Agg += l2Goals.t1;
             team2Agg += l2Goals.t2;
           }
