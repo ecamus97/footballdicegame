@@ -71,20 +71,31 @@ export const PlayoffMatchSimulator = ({
   const rollDie = (): number => Math.floor(Math.random() * 6) + 1;
   const dieToGoals = (die: number): number => die - 1;
 
+  // Calculate actual level difference (for neutral venue logic)
+  const actualLevelDiff = Math.abs(team1.level - team2.level);
+  
   const needsSecondRoll = (team1Goals: number, team2Goals: number): boolean => {
-    if (match.isNeutralVenue) return false;
-    if (levelDiff === 0) return false;
+    // No level difference = no advantage
+    if (actualLevelDiff === 0) return false;
     
     const strongerTeam = team1.level < team2.level ? "team1" : "team2";
     const strongerWins = strongerTeam === "team1" 
       ? team1Goals > team2Goals 
       : team2Goals > team1Goals;
     
-    if (levelDiff === 1) {
+    // In neutral venue: the stronger team always gets advantage if not winning
+    if (match.isNeutralVenue) {
+      return !strongerWins;
+    }
+    
+    // Normal match (with home/away)
+    if (actualLevelDiff === 1) {
+      // Only home team gets advantage if they're stronger
       if (strongerTeam === "team2") return false;
       return !strongerWins;
     }
     
+    // 2+ level difference: stronger team always gets advantage
     return !strongerWins;
   };
 
@@ -314,11 +325,13 @@ export const PlayoffMatchSimulator = ({
 
           {/* Level Info */}
           <div className="text-center text-sm text-muted-foreground">
-            {match.isNeutralVenue ? (
-              <span>🏟️ Cancha Neutral - Sin ventajas</span>
-            ) : levelDiff === 0 ? (
-              <span>Mismo nivel - Sin ventajas</span>
-            ) : levelDiff === 1 ? (
+            {actualLevelDiff === 0 ? (
+              <span>Mismo nivel - Sin ventajas {match.isNeutralVenue && "🏟️"}</span>
+            ) : match.isNeutralVenue ? (
+              <span>
+                🏟️ Cancha Neutral - {team1.level < team2.level ? team1.name : team2.name} tiene ventaja por nivel
+              </span>
+            ) : actualLevelDiff === 1 ? (
               <span>
                 1 nivel de diferencia - {team1.level < team2.level 
                   ? "Local tiene ventaja si no gana" 
@@ -326,7 +339,7 @@ export const PlayoffMatchSimulator = ({
               </span>
             ) : (
               <span>
-                {levelDiff}+ niveles de diferencia - {team1.level < team2.level ? team1.name : team2.name} tiene ventaja
+                {actualLevelDiff}+ niveles de diferencia - {team1.level < team2.level ? team1.name : team2.name} tiene ventaja
               </span>
             )}
           </div>
