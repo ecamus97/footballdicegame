@@ -42,7 +42,8 @@ export const teams: Team[] = [
   { id: "barnechea", name: "Barnechea", shortName: "Barnechea", level: 4 },
 ];
 
-export const getTeamById = (id: string): Team | undefined => {
+export const getTeamById = (id: string | null): Team | undefined => {
+  if (!id) return undefined;
   return teams.find(team => team.id === id);
 };
 

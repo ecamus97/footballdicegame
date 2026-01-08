@@ -9,7 +9,7 @@ import { Dices, CheckCircle2, RefreshCw } from "lucide-react";
 
 interface MatchSimulatorProps {
   match: Match | null;
-  getTeamById: (id: string) => Team | undefined;
+  getTeamById: (id: string | null) => Team | undefined;
   onSimulate: (matchId: string) => MatchResult | null;
   onConfirm: (matchId: string, result: MatchResult) => void;
   onClose: () => void;

@@ -6,7 +6,7 @@ import { Dices, CheckCircle2 } from "lucide-react";
 
 interface MatchCardProps {
   match: Match;
-  getTeamById: (id: string) => Team | undefined;
+  getTeamById: (id: string | null) => Team | undefined;
   onPlay: (matchId: string) => void;
   compact?: boolean;
 }

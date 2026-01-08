@@ -50,8 +50,8 @@ export interface TeamStanding {
 export interface Match {
   id: string;
   matchday: number;
-  homeTeamId: string;
-  awayTeamId: string;
+  homeTeamId: string | null;
+  awayTeamId: string | null;
   homeGoals: number | null;
   awayGoals: number | null;
   played: boolean;
