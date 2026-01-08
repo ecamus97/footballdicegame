@@ -255,15 +255,19 @@ export const PlayoffMatchSimulator = ({
   const showPenalties = ["penalties", "penalty-roll", "final"].includes(phase) && (penaltyRounds.length > 0 || currentPenaltyRoll.team1 !== null);
 
   // Calculate aggregate display for second leg
+  // Shows aggregate from perspective of current match teams (team1 vs team2)
   const getAggregateDisplay = () => {
-    if (!isSecondLeg || !result || !series) return null;
+    if (!isSecondLeg || !result || !series || !leg1Match) return null;
     
-    // In leg 2: team1 of match = series.team1Id (higher seed)
-    // Aggregate for series.team1 = leg1Team2Goals (their away goals) + result.homeGoals (their home goals)
-    const seriesTeam1Agg = leg1Team2Goals + result.homeGoals;
-    const seriesTeam2Agg = leg1Team1Goals + result.awayGoals;
+    // In this match (leg 2): match.team1Id = higher seed (home), match.team2Id = lower seed (away)
+    // In leg 1: leg1Match.team1Id = lower seed (home), leg1Match.team2Id = higher seed (away)
+    // So for current match perspective:
+    // - Current team1 (higher seed) scored: leg1Match.team2Goals (away in leg1) + result.homeGoals (home in leg2)
+    // - Current team2 (lower seed) scored: leg1Match.team1Goals (home in leg1) + result.awayGoals (away in leg2)
+    const currentTeam1Agg = (leg1Match.team2Goals || 0) + result.homeGoals;
+    const currentTeam2Agg = (leg1Match.team1Goals || 0) + result.awayGoals;
     
-    return { team1: seriesTeam1Agg, team2: seriesTeam2Agg };
+    return { team1: currentTeam1Agg, team2: currentTeam2Agg };
   };
 
   const aggregate = getAggregateDisplay();

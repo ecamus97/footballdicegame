@@ -155,6 +155,8 @@ const Index = () => {
                   tournamentConfig={tournamentConfig}
                   getTeamById={getTeamById}
                   regularSeasonComplete={regularSeasonComplete}
+                  playoffMatches={playoffMatches}
+                  playoffSeries={playoffSeries}
                 />
               </TabsContent>
             )}
@@ -186,6 +188,8 @@ const Index = () => {
                 tournamentConfig={tournamentConfig}
                 getTeamById={getTeamById}
                 regularSeasonComplete={regularSeasonComplete}
+                playoffMatches={playoffMatches}
+                playoffSeries={playoffSeries}
               />
             )}
           </div>

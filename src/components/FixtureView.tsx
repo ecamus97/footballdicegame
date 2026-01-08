@@ -316,11 +316,18 @@ export const FixtureView = ({
                         {team1?.name || "Por definir"}
                       </span>
                     </div>
-                    <div className="px-4 text-center min-w-[60px]">
+                    <div className="px-4 text-center min-w-[80px]">
                       {match.played ? (
-                        <span className="font-bold text-lg">
-                          {match.team1Goals} - {match.team2Goals}
-                        </span>
+                        <div className="flex flex-col items-center">
+                          <span className="font-bold text-lg">
+                            {match.team1Goals} - {match.team2Goals}
+                          </span>
+                          {match.penalties && (
+                            <span className="text-xs text-muted-foreground">
+                              (Pen: {match.penalties.team1Penalties}-{match.penalties.team2Penalties})
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <span className="text-muted-foreground">vs</span>
                       )}
