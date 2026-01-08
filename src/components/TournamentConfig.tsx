@@ -565,10 +565,31 @@ export const TournamentConfig = ({
               </div>
 
               {numTeams % 2 !== 0 && numTeams > 0 && (
-                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive">
-                  El número de equipos debe ser par para generar el fixture.
+                <div className={cn(
+                  "p-3 rounded-lg text-sm border",
+                  currentConfig.allowOddTeams 
+                    ? "bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400"
+                    : "bg-destructive/10 border-destructive/20 text-destructive"
+                )}>
+                  {currentConfig.allowOddTeams 
+                    ? `Número impar de equipos. Cada fecha habrá 1 equipo libre.`
+                    : "El número de equipos debe ser par para generar el fixture (o activa 'Equipos impares')."
+                  }
                 </div>
               )}
+
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">Permitir equipos impares</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Un equipo queda libre cada fecha cuando hay número impar
+                  </p>
+                </div>
+                <SwitchComponent
+                  checked={currentConfig.allowOddTeams || false}
+                  onCheckedChange={(checked) => setPendingConfig(prev => ({ ...prev, allowOddTeams: checked }))}
+                />
+              </div>
 
               <ScrollArea className="h-[300px]">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pr-4">

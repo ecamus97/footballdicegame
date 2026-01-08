@@ -550,16 +550,33 @@ export const useGameState = () => {
     const team1 = getTeamById(match.team1Id)!;
     const team2 = getTeamById(match.team2Id)!;
     
-    // For neutral venue, use level 2 for both (no home advantage)
-    const effectiveTeam1 = match.isNeutralVenue ? { ...team1, level: 2 as const } : team1;
-    const effectiveTeam2 = match.isNeutralVenue ? { ...team2, level: 2 as const } : team2;
+    // In neutral venue: no home advantage, but level differences still apply
+    // We keep real levels, but for needsSecondRoll we treat it as if both were same level for home advantage
     
     const firstTeam1Roll = rollDie();
     const firstTeam2Roll = rollDie();
     const firstTeam1Goals = dieToGoals(firstTeam1Roll);
     const firstTeam2Goals = dieToGoals(firstTeam2Roll);
     
-    const requiresSecond = !match.isNeutralVenue && needsSecondRoll(effectiveTeam1, effectiveTeam2, firstTeam1Goals, firstTeam2Goals);
+    // In neutral venue, no second roll (no home advantage to apply)
+    // But level difference still matters for team with better level
+    let requiresSecond = false;
+    if (!match.isNeutralVenue) {
+      requiresSecond = needsSecondRoll(team1, team2, firstTeam1Goals, firstTeam2Goals);
+    } else {
+      // In neutral venue: the team with better level (lower number) gets advantage
+      // If tied or the better team is already winning/drawing, no second roll
+      // If the worse team is winning, the better team gets a second chance
+      if (team1.level !== team2.level) {
+        const betterTeam = team1.level < team2.level ? 'team1' : 'team2';
+        const betterTeamWinning = betterTeam === 'team1' ? firstTeam1Goals > firstTeam2Goals : firstTeam2Goals > firstTeam1Goals;
+        const tied = firstTeam1Goals === firstTeam2Goals;
+        if (!betterTeamWinning && !tied) {
+          // Better level team is losing, they get a second chance
+          requiresSecond = true;
+        }
+      }
+    }
     
     let finalTeam1Goals = firstTeam1Goals;
     let finalTeam2Goals = firstTeam2Goals;
