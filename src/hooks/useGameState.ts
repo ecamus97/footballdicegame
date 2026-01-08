@@ -20,6 +20,7 @@ const getDefaultTournamentConfig = (): TournamentConfig => ({
   name: "Campeonato Chileno 2026",
   format: "double",
   participatingTeamIds: defaultTeams.slice(0, 16).map(t => t.id),
+  allowOddTeams: false,
   relegationSpots: 2,
   // Playoffs
   playoffsEnabled: false,
@@ -45,35 +46,54 @@ const getDefaultTeamNames = (): Record<string, { name: string; shortName: string
 };
 
 // Generate round-robin fixture
-const generateFixture = (teamList: Team[], format: TournamentFormat): Match[] => {
+const BYE_TEAM_ID = "__bye__";
+
+const generateFixture = (
+  teamList: Team[],
+  format: TournamentFormat,
+  allowOddTeams: boolean = false
+): Match[] => {
   const matches: Match[] = [];
   const teamIds = teamList.map(t => t.id);
-  const n = teamIds.length;
-  
+
+  let n = teamIds.length;
+
   if (n < 2) return [];
-  
+
+  // If odd teams are allowed, add a BYE to make the algorithm work.
+  if (allowOddTeams && n % 2 !== 0) {
+    teamIds.push(BYE_TEAM_ID);
+    n = teamIds.length;
+  }
+
+  // Guard: if still odd, we cannot generate a proper round-robin.
+  if (n % 2 !== 0) return [];
+
   const numRounds = n - 1;
   const half = n / 2;
-  
+
   let matchId = 1;
-  
+
   for (let matchday = 0; matchday < numRounds; matchday++) {
     const indices = teamIds.map((_, i) => i).slice(1);
-    
+
     for (let r = 0; r < matchday; r++) {
       indices.push(indices.shift()!);
     }
-    
+
     const newIndices = [0, ...indices];
-    
+
     for (let i = 0; i < half; i++) {
       const home = newIndices[i];
       const away = newIndices[n - 1 - i];
-      
+
       if (home < n && away < n) {
         const homeTeam = teamIds[matchday % 2 === 0 ? home : away];
         const awayTeam = teamIds[matchday % 2 === 0 ? away : home];
-        
+
+        // Skip BYE matches (one team rests this matchday).
+        if (homeTeam === BYE_TEAM_ID || awayTeam === BYE_TEAM_ID) continue;
+
         matches.push({
           id: `match-${matchId++}`,
           matchday: matchday + 1,
@@ -86,7 +106,7 @@ const generateFixture = (teamList: Team[], format: TournamentFormat): Match[] =>
       }
     }
   }
-  
+
   // Create second leg matches (vuelta) if format is double
   if (format === "double") {
     const firstLegMatches = [...matches];
@@ -102,7 +122,7 @@ const generateFixture = (teamList: Team[], format: TournamentFormat): Match[] =>
       });
     }
   }
-  
+
   return matches.sort((a, b) => a.matchday - b.matchday);
 };
 
@@ -171,7 +191,7 @@ export const useGameState = () => {
   // Initialize tournament on first load or when config changes
   useEffect(() => {
     if (matches.length === 0) {
-      setMatches(generateFixture(teams, tournamentConfig.format));
+      setMatches(generateFixture(teams, tournamentConfig.format, tournamentConfig.allowOddTeams ?? false));
       setStandings(initializeStandings(teams));
     }
   }, []);
@@ -595,40 +615,57 @@ export const useGameState = () => {
         
         const updatedSeries = { ...s };
         
-        // For two-leg format:
-        // - Leg 1: match.team1Id = lower seed (home), match.team2Id = higher seed (away)
-        //   So leg 1 goals: team1Goals = lower seed goals, team2Goals = higher seed goals
-        // - Leg 2: match.team1Id = higher seed (home), match.team2Id = lower seed (away)
-        //   So leg 2 goals: team1Goals = higher seed goals, team2Goals = lower seed goals
-        // - Series: team1Id = higher seed, team2Id = lower seed
-        
-        if (s.leg1Id === matchId) {
-          // This is leg 1 - match.team1 = lower seed, match.team2 = higher seed
-          // So for series aggregate: series.team1 (higher seed) gets result.awayGoals
-          //                          series.team2 (lower seed) gets result.homeGoals
-          if (!isOnlyLeg) {
-            // Two-leg format - teams are swapped in leg 1
-            updatedSeries.team1Aggregate += result.awayGoals; // Higher seed's away goals
-            updatedSeries.team2Aggregate += result.homeGoals; // Lower seed's home goals
+        // Recompute aggregate from legs every time (avoids double-counting and fixes inverted globals)
+        const hasTwoLegs = !!s.leg2Id;
+
+        const leg1 = s.leg1Id
+          ? (s.leg1Id === matchId
+              ? { played: true, team1Goals: result.homeGoals, team2Goals: result.awayGoals }
+              : (() => {
+                  const m = playoffMatches.find(m => m.id === s.leg1Id);
+                  return m ? { played: m.played, team1Goals: m.team1Goals ?? 0, team2Goals: m.team2Goals ?? 0 } : null;
+                })())
+          : null;
+
+        const leg2 = s.leg2Id
+          ? (s.leg2Id === matchId
+              ? { played: true, team1Goals: result.homeGoals, team2Goals: result.awayGoals }
+              : (() => {
+                  const m = playoffMatches.find(m => m.id === s.leg2Id);
+                  return m ? { played: m.played, team1Goals: m.team1Goals ?? 0, team2Goals: m.team2Goals ?? 0 } : null;
+                })())
+          : null;
+
+        let team1Agg = 0;
+        let team2Agg = 0;
+
+        if (leg1?.played) {
+          if (hasTwoLegs) {
+            // Leg 1: home = peor seed, away = mejor seed => series.team1 (mejor seed) suma "away"
+            team1Agg += leg1.team2Goals;
+            team2Agg += leg1.team1Goals;
           } else {
-            // Single leg - no swap
-            updatedSeries.team1Aggregate += result.homeGoals;
-            updatedSeries.team2Aggregate += result.awayGoals;
+            // Single leg uses match perspective: team1 = local
+            team1Agg += leg1.team1Goals;
+            team2Agg += leg1.team2Goals;
           }
-        } else if (s.leg2Id === matchId) {
-          // This is leg 2 - match.team1 = higher seed (home), match.team2 = lower seed (away)
-          // So for series aggregate: series.team1 (higher seed) gets result.homeGoals
-          //                          series.team2 (lower seed) gets result.awayGoals
-          updatedSeries.team1Aggregate += result.homeGoals;
-          updatedSeries.team2Aggregate += result.awayGoals;
         }
+
+        if (hasTwoLegs && leg2?.played) {
+          // Leg 2: home = mejor seed, away = peor seed
+          team1Agg += leg2.team1Goals;
+          team2Agg += leg2.team2Goals;
+        }
+
+        updatedSeries.team1Aggregate = team1Agg;
+        updatedSeries.team2Aggregate = team2Agg;
         
         // Check if series is complete
         const leg1Match = playoffMatches.find(m => m.id === s.leg1Id);
         const leg2Match = s.leg2Id ? playoffMatches.find(m => m.id === s.leg2Id) : null;
         const leg1Played = leg1Match?.played || matchId === s.leg1Id;
         const leg2Played = !s.leg2Id || leg2Match?.played || matchId === s.leg2Id;
-        
+
         if (leg1Played && leg2Played) {
           // Determine winner
           if (result.winnerId) {
@@ -638,10 +675,6 @@ export const useGameState = () => {
             updatedSeries.winnerId = s.team1Id;
           } else if (updatedSeries.team2Aggregate > updatedSeries.team1Aggregate) {
             updatedSeries.winnerId = s.team2Id;
-          } else {
-            // Tied on aggregate - shouldn't happen if penalties were handled correctly
-            // But as fallback, use last match winner
-            updatedSeries.winnerId = result.homeGoals > result.awayGoals ? match.team1Id : match.team2Id;
           }
         }
         
@@ -680,91 +713,60 @@ export const useGameState = () => {
       return newSeries;
     });
     
-    // Also update playoff matches with teams for next round
-    setTimeout(() => {
-      setPlayoffMatches(prev => {
-        const updatedSeries = playoffSeries.find(s => s.leg1Id === matchId || s.leg2Id === matchId);
-        if (!updatedSeries) return prev;
-        
-        // Get the winner from the result or calculate
-        let winnerId = result.winnerId;
-        
-        if (!winnerId) {
-          // Check if the series is complete now
-          const leg1Match = prev.find(m => m.id === updatedSeries.leg1Id);
-          const leg2Match = updatedSeries.leg2Id ? prev.find(m => m.id === updatedSeries.leg2Id) : null;
-          
-          const isComplete = (leg1Match?.played || matchId === updatedSeries.leg1Id) && 
-                            (!updatedSeries.leg2Id || leg2Match?.played || matchId === updatedSeries.leg2Id);
-          
-          if (!isComplete) return prev;
-          
-          // Calculate aggregate using same logic as series update
-          let team1Agg = 0;
-          let team2Agg = 0;
-          
-          const hasTwoLegs = !!updatedSeries.leg2Id;
-          
-          if (leg1Match?.played || matchId === updatedSeries.leg1Id) {
-            const l1Goals = matchId === updatedSeries.leg1Id 
-              ? { t1: result.homeGoals, t2: result.awayGoals }
-              : { t1: leg1Match!.team1Goals || 0, t2: leg1Match!.team2Goals || 0 };
-            
-            if (hasTwoLegs) {
-              // Leg 1 teams are swapped: match.team1 = lower seed, match.team2 = higher seed
-              // series.team1 = higher seed, series.team2 = lower seed
-              team1Agg += l1Goals.t2; // Higher seed's away goals
-              team2Agg += l1Goals.t1; // Lower seed's home goals
-            } else {
-              team1Agg += l1Goals.t1;
-              team2Agg += l1Goals.t2;
-            }
-          }
-          
-          if (leg2Match?.played || matchId === updatedSeries.leg2Id) {
-            const l2Goals = matchId === updatedSeries.leg2Id
-              ? { t1: result.homeGoals, t2: result.awayGoals }
-              : { t1: leg2Match!.team1Goals || 0, t2: leg2Match!.team2Goals || 0 };
-            
-            // Leg 2: match.team1 = higher seed (home), match.team2 = lower seed (away)
-            team1Agg += l2Goals.t1;
-            team2Agg += l2Goals.t2;
-          }
-          
-          if (team1Agg > team2Agg) {
-            winnerId = updatedSeries.team1Id;
-          } else if (team2Agg > team1Agg) {
-            winnerId = updatedSeries.team2Id;
-          }
+  }, [playoffMatches, playoffSeries, tournamentConfig.playoffsFormat]);
+
+  // Keep playoff matches (home/away) consistent with series seeds.
+  // Fixes: mejor ubicado jugando ambos de local + global invertido por IDs swap.
+  useEffect(() => {
+    if (!tournamentConfig.playoffsEnabled) return;
+
+    const isSingleLeg = tournamentConfig.playoffsFormat === "single";
+
+    setPlayoffMatches(prev => {
+      let changed = false;
+
+      const next = prev.map(m => {
+        const s = playoffSeries.find(ps => ps.leg1Id === m.id || ps.leg2Id === m.id);
+        if (!s || !s.team1Id || !s.team2Id) return m;
+
+        const hasTwoLegs = !!s.leg2Id;
+
+        // Decide which team is better seeded (smaller seed number)
+        let betterId = s.team1Id;
+        let worseId = s.team2Id;
+        if (s.team1Seed > 0 && s.team2Seed > 0) {
+          const team1Better = s.team1Seed <= s.team2Seed;
+          betterId = team1Better ? s.team1Id : s.team2Id;
+          worseId = team1Better ? s.team2Id : s.team1Id;
         }
-        
-        if (!winnerId) return prev;
-        
-        // Series is complete, find next round matches
-        const currentRound = updatedSeries.round;
-        const nextRound: PlayoffRound | null = currentRound === "quarterfinals" ? "semifinals" : currentRound === "semifinals" ? "final" : null;
-        
-        if (!nextRound) return prev;
-        
-        const matchNum = updatedSeries.matchNumber;
-        const nextMatchNum = Math.ceil(matchNum / 2);
-        const isTeam1 = matchNum % 2 === 1;
-        
-        return prev.map(m => {
-          if (m.round === nextRound && m.matchNumber === nextMatchNum) {
-            const updated = { ...m };
-            if (isTeam1) {
-              updated.team1Id = winnerId;
-            } else {
-              updated.team2Id = winnerId;
-            }
-            return updated;
+
+        // Single leg (or no return leg): default home = better seed (unless neutral)
+        if (isSingleLeg || !hasTwoLegs) {
+          const homeId = m.isNeutralVenue ? s.team1Id : betterId;
+          const awayId = m.isNeutralVenue ? s.team2Id : worseId;
+
+          if (m.team1Id !== homeId || m.team2Id !== awayId) {
+            changed = true;
+            return { ...m, team1Id: homeId, team2Id: awayId };
           }
           return m;
-        });
+        }
+
+        // Two legs: leg 1 local = peor seed, leg 2 local = mejor seed
+        const homeId = m.leg === 1 ? worseId : betterId;
+        const awayId = m.leg === 1 ? betterId : worseId;
+
+        if (m.team1Id !== homeId || m.team2Id !== awayId) {
+          changed = true;
+          return { ...m, team1Id: homeId, team2Id: awayId };
+        }
+
+        return m;
       });
-    }, 100);
-  }, [playoffMatches, playoffSeries, tournamentConfig.playoffsFormat]);
+
+      return changed ? next : prev;
+    });
+  }, [playoffSeries, tournamentConfig.playoffsEnabled, tournamentConfig.playoffsFormat]);
 
   // Get series for a match
   const getSeriesForMatch = useCallback((matchId: string) => {
@@ -868,7 +870,7 @@ export const useGameState = () => {
         ...team,
         level: teamLevels[team.id] || team.level,
       }));
-    setMatches(generateFixture(participatingTeams, tournamentConfig.format));
+    setMatches(generateFixture(participatingTeams, tournamentConfig.format, tournamentConfig.allowOddTeams ?? false));
     setStandings(initializeStandings(participatingTeams));
     setPlayoffMatches([]);
     setPlayoffSeries([]);
@@ -888,7 +890,7 @@ export const useGameState = () => {
         ...team,
         level: teamLevels[team.id] || team.level,
       }));
-    setMatches(generateFixture(participatingTeams, configToUse.format));
+    setMatches(generateFixture(participatingTeams, configToUse.format, configToUse.allowOddTeams ?? false));
     setStandings(initializeStandings(participatingTeams));
   }, [tournamentConfig, teamLevels]);
 
