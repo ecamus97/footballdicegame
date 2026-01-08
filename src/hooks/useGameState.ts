@@ -98,17 +98,17 @@ const generateFixture = (
         const homeTeam = teamIds[matchday % 2 === 0 ? home : away];
         const awayTeam = teamIds[matchday % 2 === 0 ? away : home];
 
-        // Skip BYE matches (one team rests this matchday).
-        if (homeTeam === BYE_TEAM_ID || awayTeam === BYE_TEAM_ID) continue;
-
+        // Check if this is a BYE match
+        const isByeMatch = homeTeam === BYE_TEAM_ID || awayTeam === BYE_TEAM_ID;
+        
         matches.push({
           id: `match-${matchId++}`,
           matchday: matchday + 1,
-          homeTeamId: homeTeam,
-          awayTeamId: awayTeam,
-          homeGoals: null,
-          awayGoals: null,
-          played: false,
+          homeTeamId: homeTeam === BYE_TEAM_ID ? null : homeTeam,
+          awayTeamId: awayTeam === BYE_TEAM_ID ? null : awayTeam,
+          homeGoals: isByeMatch ? 0 : null,
+          awayGoals: isByeMatch ? 0 : null,
+          played: isByeMatch, // BYE matches are automatically "played"
         });
       }
     }
@@ -210,7 +210,8 @@ export const useGameState = () => {
   }, []);
 
   // Get team by ID with current level and name
-  const getTeamById = useCallback((id: string): Team | undefined => {
+  const getTeamById = useCallback((id: string | null): Team | undefined => {
+    if (!id) return undefined;
     const team = defaultTeams.find(t => t.id === id);
     if (team) {
       return { 

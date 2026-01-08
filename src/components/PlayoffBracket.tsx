@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 interface PlayoffBracketProps {
   standings: TeamStanding[];
   tournamentConfig: TournamentConfig;
-  getTeamById: (id: string) => Team | undefined;
+  getTeamById: (id: string | null) => Team | undefined;
   regularSeasonComplete: boolean;
   playoffMatches?: PlayoffMatchType[];
   playoffSeries?: PlayoffSeries[];

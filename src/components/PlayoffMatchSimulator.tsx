@@ -17,7 +17,7 @@ interface PlayoffMatchSimulatorProps {
   match: PlayoffMatch | null;
   series: PlayoffSeries | null;
   leg1Match: PlayoffMatch | null; // For second leg, we need first leg info
-  getTeamById: (id: string) => Team | undefined;
+  getTeamById: (id: string | null) => Team | undefined;
   getPlayoffRoundName: (round: PlayoffRound, leg?: number) => string;
   isSingleLeg: boolean;
   onConfirm: (matchId: string, result: PlayoffMatchResult) => void;

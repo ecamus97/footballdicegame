@@ -18,7 +18,7 @@ interface FixtureViewProps {
   matches: Match[];
   totalMatchdays: number;
   getMatchesByMatchday: (matchday: number) => Match[];
-  getTeamById: (id: string) => Team | undefined;
+  getTeamById: (id: string | null) => Team | undefined;
   onPlayMatch: (matchId: string) => void;
   onSimulateMatchdays?: (numMatchdays: number) => number;
   // Playoff props

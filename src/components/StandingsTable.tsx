@@ -5,7 +5,7 @@ import { Trophy, Medal, TrendingDown, Star, Globe, ArrowUpDown } from "lucide-re
 
 interface StandingsTableProps {
   standings: TeamStanding[];
-  getTeamById: (id: string) => Team | undefined;
+  getTeamById: (id: string | null) => Team | undefined;
   tournamentConfig: TournamentConfig;
 }
 
