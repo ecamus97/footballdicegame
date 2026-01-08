@@ -226,15 +226,39 @@ export const FixtureView = ({
           
           {/* Matches List */}
           <div className="p-4 space-y-3">
-            {matchdayMatches.map(match => (
-              <MatchCard 
-                key={match.id} 
-                match={match}
-                getTeamById={getTeamById}
-                onPlay={onPlayMatch}
-                compact
-              />
-            ))}
+            {matchdayMatches.map(match => {
+              // Check if this is a "bye" match (team vs null opponent)
+              const team1 = getTeamById(match.homeTeamId);
+              const team2 = getTeamById(match.awayTeamId);
+              const isByeMatch = !team1 || !team2;
+              
+              if (isByeMatch) {
+                const restingTeam = team1 || team2;
+                return (
+                  <div 
+                    key={match.id}
+                    className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium">{restingTeam?.name || "Equipo"}</span>
+                    </div>
+                    <span className="px-3 py-1 bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-full text-sm font-medium">
+                      LIBRE
+                    </span>
+                  </div>
+                );
+              }
+              
+              return (
+                <MatchCard 
+                  key={match.id} 
+                  match={match}
+                  getTeamById={getTeamById}
+                  onPlay={onPlayMatch}
+                  compact
+                />
+              );
+            })}
           </div>
         </>
       ) : (
