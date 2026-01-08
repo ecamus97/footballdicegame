@@ -407,13 +407,14 @@ export const useGameState = () => {
         
         let leg2Id: string | null = null;
         if (!isSingleLeg) {
+          // In leg 2, swap home/away: higher seed (team1) plays at home, lower seed (team2) is away
           const leg2: PlayoffMatch = {
             id: `playoff-${matchId++}`,
             round: firstRound,
             matchNumber: i + 1,
             leg: 2,
-            team1Id: team1?.teamId,
-            team2Id: team2?.teamId,
+            team1Id: team1?.teamId, // Higher seed is home in leg 2
+            team2Id: team2?.teamId, // Lower seed is away in leg 2
             team1Goals: null,
             team2Goals: null,
             played: false,
