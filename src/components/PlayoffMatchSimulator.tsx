@@ -183,20 +183,23 @@ export const PlayoffMatchSimulator = ({
     
     await new Promise(resolve => setTimeout(resolve, 800));
     
-    const team1Pen = rollDie();
-    const team2Pen = rollDie();
+    const team1Die = rollDie();
+    const team2Die = rollDie();
+    // Apply same logic as matches: die - 1 = converted penalties
+    const team1Pen = dieToGoals(team1Die);
+    const team2Pen = dieToGoals(team2Die);
     
-    setCurrentPenaltyRoll({ team1: team1Pen, team2: team2Pen });
+    setCurrentPenaltyRoll({ team1: team1Die, team2: team2Die });
     setRolling(false);
     
-    // Check if there's a winner
+    // Check if there's a winner (compare converted penalties, not dice)
     if (team1Pen !== team2Pen) {
-      const newRounds = [...penaltyRounds, { team1: team1Pen, team2: team2Pen }];
+      const newRounds = [...penaltyRounds, { team1: team1Die, team2: team2Die }];
       setPenaltyRounds(newRounds);
       
-      // Calculate total
-      const team1Total = newRounds.reduce((sum, r) => sum + r.team1, 0);
-      const team2Total = newRounds.reduce((sum, r) => sum + r.team2, 0);
+      // Calculate total converted penalties
+      const team1Total = newRounds.reduce((sum, r) => sum + dieToGoals(r.team1), 0);
+      const team2Total = newRounds.reduce((sum, r) => sum + dieToGoals(r.team2), 0);
       
       const winnerId = team1Pen > team2Pen ? match.team1Id : match.team2Id;
       
@@ -213,7 +216,7 @@ export const PlayoffMatchSimulator = ({
       setPhase("final");
     } else {
       // Tie - need another round
-      setPenaltyRounds(prev => [...prev, { team1: team1Pen, team2: team2Pen }]);
+      setPenaltyRounds(prev => [...prev, { team1: team1Die, team2: team2Die }]);
       setPhase("penalties");
     }
   };
@@ -430,19 +433,22 @@ export const PlayoffMatchSimulator = ({
                 </div>
                 
                 {/* Previous penalty rounds */}
-                {penaltyRounds.map((round, idx) => (
-                  <div key={idx} className="flex items-center justify-center gap-8 mb-2 p-2 bg-background/50 rounded">
-                    <span className="text-sm text-muted-foreground">Ronda {idx + 1}:</span>
-                    <span className={cn("font-bold", round.team1 > round.team2 && "text-green-600")}>
-                      {team1.shortName}: {round.team1}
-                    </span>
-                    <span className="text-muted-foreground">-</span>
-                    <span className={cn("font-bold", round.team2 > round.team1 && "text-green-600")}>
-                      {team2.shortName}: {round.team2}
-                    </span>
-                    {round.team1 === round.team2 && <span className="text-xs text-muted-foreground">(Empate)</span>}
-                  </div>
-                ))}
+                {penaltyRounds.map((round, idx) => {
+                  const t1Conv = dieToGoals(round.team1);
+                  const t2Conv = dieToGoals(round.team2);
+                  return (
+                    <div key={idx} className="flex items-center justify-center gap-8 mb-2 p-2 bg-background/50 rounded">
+                      <span className="text-sm text-muted-foreground">Ronda {idx + 1}:</span>
+                      <span className={cn("font-bold", t1Conv > t2Conv && "text-green-600")}>
+                        {team1.shortName}: {t1Conv} (dado: {round.team1})
+                      </span>
+                      <span className="text-muted-foreground">-</span>
+                      <span className={cn("font-bold", t2Conv > t1Conv && "text-green-600")}>
+                        {team2.shortName}: {t2Conv} (dado: {round.team2})
+                      </span>
+                    </div>
+                  );
+                })}
                 
                 {/* Current penalty roll */}
                 {(phase === "penalties" || phase === "penalty-roll") && (
