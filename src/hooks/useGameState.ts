@@ -261,8 +261,13 @@ export const useGameState = () => {
   const getMatchSimulationResult = useCallback((match: Match): MatchResult | null => {
     if (match.played) return null;
     
-    const homeTeam = getTeamById(match.homeTeamId)!;
-    const awayTeam = getTeamById(match.awayTeamId)!;
+    // Skip bye matches (one team is null)
+    if (!match.homeTeamId || !match.awayTeamId) return null;
+    
+    const homeTeam = getTeamById(match.homeTeamId);
+    const awayTeam = getTeamById(match.awayTeamId);
+    
+    if (!homeTeam || !awayTeam) return null;
     
     const firstHomeRoll = rollDie();
     const firstAwayRoll = rollDie();
