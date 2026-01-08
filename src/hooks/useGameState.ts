@@ -15,6 +15,13 @@ interface SavedGameState {
   savedAt: string;
 }
 
+// Extended result type for playoffs (includes penalties)
+interface PlayoffMatchResultExtended extends MatchResult {
+  needsPenalties?: boolean;
+  penalties?: { team1Penalties: number; team2Penalties: number; rounds: { team1: number; team2: number }[] };
+  winnerId?: string;
+}
+
 // Get default tournament config
 const getDefaultTournamentConfig = (): TournamentConfig => ({
   name: "Campeonato Chileno 2026",
@@ -574,13 +581,6 @@ export const useGameState = () => {
       requiredSecondRoll: requiresSecond,
     };
   }, [playoffMatches, getTeamById, rollDie, dieToGoals, needsSecondRoll]);
-
-  // Extended result type for playoffs (includes penalties)
-  interface PlayoffMatchResultExtended extends MatchResult {
-    needsPenalties?: boolean;
-    penalties?: { team1Penalties: number; team2Penalties: number; rounds: { team1: number; team2: number }[] };
-    winnerId?: string;
-  }
 
   // Confirm playoff match result
   const confirmPlayoffMatchResult = useCallback((matchId: string, result: PlayoffMatchResultExtended) => {
