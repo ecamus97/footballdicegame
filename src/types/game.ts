@@ -14,6 +14,8 @@ export interface TournamentConfig {
   name: string;
   format: TournamentFormat;
   participatingTeamIds: string[];
+  /** Permite cantidad impar de equipos (1 equipo libre por fecha). */
+  allowOddTeams?: boolean;
   relegationSpots: number;
   // Playoffs
   playoffsEnabled: boolean;

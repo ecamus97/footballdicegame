@@ -64,6 +64,7 @@ export const TournamentConfig = ({
     name: pendingConfig.name ?? config.name,
     format: pendingConfig.format ?? config.format,
     participatingTeamIds: pendingConfig.participatingTeamIds ?? config.participatingTeamIds,
+    allowOddTeams: pendingConfig.allowOddTeams ?? config.allowOddTeams ?? false,
     relegationSpots: pendingConfig.relegationSpots ?? config.relegationSpots,
     // Playoffs
     playoffsEnabled: pendingConfig.playoffsEnabled ?? config.playoffsEnabled,
@@ -150,11 +151,11 @@ export const TournamentConfig = ({
       return;
     }
 
-    // Check if teams count is even
-    if (currentConfig.participatingTeamIds.length % 2 !== 0) {
+    // Check if teams count is even (unless odd teams are allowed)
+    if (currentConfig.participatingTeamIds.length % 2 !== 0 && !currentConfig.allowOddTeams) {
       toast({
         title: "Error",
-        description: "El número de equipos debe ser par.",
+        description: "El número de equipos debe ser par (o activa 'Equipos impares' para 1 equipo libre por fecha).",
         variant: "destructive",
       });
       return;
@@ -237,8 +238,12 @@ export const TournamentConfig = ({
   const numTeams = currentConfig.participatingTeamIds.length;
   const matchesPerRound = numTeams > 0 ? (numTeams * (numTeams - 1)) / 2 : 0;
   const totalMatches = currentConfig.format === "double" ? matchesPerRound * 2 : matchesPerRound;
-  const totalMatchdays = numTeams > 1 
-    ? (currentConfig.format === "double" ? (numTeams - 1) * 2 : numTeams - 1)
+
+  const oddAllowed = currentConfig.allowOddTeams && numTeams % 2 !== 0;
+  const totalMatchdays = numTeams > 1
+    ? oddAllowed
+      ? (currentConfig.format === "double" ? numTeams * 2 : numTeams)
+      : (currentConfig.format === "double" ? (numTeams - 1) * 2 : numTeams - 1)
     : 0;
 
   // Group participating teams by level
