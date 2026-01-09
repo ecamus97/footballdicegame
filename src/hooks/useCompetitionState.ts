@@ -593,6 +593,82 @@ export const useCompetitionState = () => {
     });
   }, [competitionState]);
 
+  // Simulate entire matchday across all groups
+  const simulateGroupMatchday = useCallback((matchday: number) => {
+    if (!competitionState?.groups) return;
+    
+    setCompetitionState(prev => {
+      if (!prev?.groups) return prev;
+      
+      const updatedGroups = prev.groups.map(group => {
+        let matches = [...group.matches];
+        let standings = [...group.standings];
+        
+        matches.forEach((match, matchIndex) => {
+          if (match.matchday !== matchday || match.played) return;
+          
+          const homeRoll = Math.floor(Math.random() * 6) + 1;
+          const awayRoll = Math.floor(Math.random() * 6) + 1;
+          const homeGoals = homeRoll - 1;
+          const awayGoals = awayRoll - 1;
+          
+          matches[matchIndex] = {
+            ...match,
+            homeGoals,
+            awayGoals,
+            played: true,
+            firstRoll: { home: homeRoll, away: awayRoll },
+          };
+          
+          // Update standings
+          const homeStandingIdx = standings.findIndex(s => s.teamId === match.homeTeamId);
+          const awayStandingIdx = standings.findIndex(s => s.teamId === match.awayTeamId);
+          
+          if (homeStandingIdx !== -1 && awayStandingIdx !== -1) {
+            const homeStanding = { ...standings[homeStandingIdx] };
+            const awayStanding = { ...standings[awayStandingIdx] };
+            
+            homeStanding.played++;
+            awayStanding.played++;
+            homeStanding.goalsFor += homeGoals;
+            homeStanding.goalsAgainst += awayGoals;
+            awayStanding.goalsFor += awayGoals;
+            awayStanding.goalsAgainst += homeGoals;
+            
+            if (homeGoals > awayGoals) {
+              homeStanding.won++;
+              homeStanding.points += 3;
+              awayStanding.lost++;
+            } else if (awayGoals > homeGoals) {
+              awayStanding.won++;
+              awayStanding.points += 3;
+              homeStanding.lost++;
+            } else {
+              homeStanding.drawn++;
+              awayStanding.drawn++;
+              homeStanding.points++;
+              awayStanding.points++;
+            }
+            
+            homeStanding.goalDifference = homeStanding.goalsFor - homeStanding.goalsAgainst;
+            awayStanding.goalDifference = awayStanding.goalsFor - awayStanding.goalsAgainst;
+            
+            standings[homeStandingIdx] = homeStanding;
+            standings[awayStandingIdx] = awayStanding;
+          }
+        });
+        
+        return {
+          ...group,
+          matches,
+          standings: sortGroupStandings(standings),
+        };
+      });
+      
+      return { ...prev, groups: updatedGroups };
+    });
+  }, [competitionState]);
+
   // Check if group stage is complete
   const isGroupStageComplete = useMemo(() => {
     if (!competitionState?.groups) return false;
@@ -688,6 +764,7 @@ export const useCompetitionState = () => {
     completeDraw,
     simulateGroupMatch,
     confirmGroupMatchResult,
+    simulateGroupMatchday,
     isGroupStageComplete,
     getQualifiedTeamsFromGroups,
     advanceToKnockout,

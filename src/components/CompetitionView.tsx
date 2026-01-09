@@ -1,0 +1,179 @@
+import { useState } from "react";
+import { CompetitionState, CompetitionConfig } from "@/types/competition";
+import { Team } from "@/types/game";
+import { VisualDraw } from "./VisualDraw";
+import { GroupStageView } from "./GroupStageView";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  Shuffle, 
+  Users, 
+  Trophy, 
+  Crown,
+  ChevronRight,
+  Settings,
+  RotateCcw
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+interface CompetitionViewProps {
+  competitionState: CompetitionState;
+  getTeamById: (id: string | null) => Team | undefined;
+  onDrawStep: () => { type: string; teamId?: string; groupId?: string } | null;
+  onCompleteDraw: () => void;
+  onPlayGroupMatch: (matchId: string, groupId: string) => void;
+  onSimulateGroupMatchday: (matchday: number) => void;
+  onReset: () => void;
+}
+
+export const CompetitionView = ({
+  competitionState,
+  getTeamById,
+  onDrawStep,
+  onCompleteDraw,
+  onPlayGroupMatch,
+  onSimulateGroupMatchday,
+  onReset,
+}: CompetitionViewProps) => {
+  const { config, phase, drawState, groups } = competitionState;
+
+  // Get phase info
+  const getPhaseInfo = () => {
+    switch (phase) {
+      case "setup":
+        return { label: "Configuración", icon: Settings, color: "text-muted-foreground" };
+      case "draw":
+        return { label: "Sorteo", icon: Shuffle, color: "text-blue-500" };
+      case "qualifying":
+        return { label: "Fase Previa", icon: Trophy, color: "text-orange-500" };
+      case "groups":
+        return { label: "Fase de Grupos", icon: Users, color: "text-green-500" };
+      case "knockout":
+        return { label: "Eliminatorias", icon: Crown, color: "text-purple-500" };
+      case "complete":
+        return { label: "Finalizado", icon: Trophy, color: "text-yellow-500" };
+    }
+  };
+
+  const phaseInfo = getPhaseInfo();
+  const PhaseIcon = phaseInfo.icon;
+
+  // Calculate progress
+  const getProgress = () => {
+    if (phase === "groups" && groups) {
+      const totalMatches = groups.reduce((acc, g) => acc + g.matches.length, 0);
+      const playedMatches = groups.reduce(
+        (acc, g) => acc + g.matches.filter(m => m.played).length, 
+        0
+      );
+      return { played: playedMatches, total: totalMatches };
+    }
+    return null;
+  };
+
+  const progress = getProgress();
+
+  // Get qualification spots
+  const qualificationSpots = config.groupConfig?.qualificationRule === "first_only" 
+    ? 1 
+    : config.groupConfig?.qualificationRule === "first_second" 
+      ? 2 
+      : 2;
+
+  return (
+    <div className="space-y-6">
+      {/* Competition Header */}
+      <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+        <CardContent className="py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                <Trophy className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-display font-bold">{config.name}</h1>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <PhaseIcon className={cn("w-4 h-4", phaseInfo.color)} />
+                  <span>{phaseInfo.label}</span>
+                  <ChevronRight className="w-4 h-4" />
+                  <Badge variant="outline">
+                    {config.participatingTeamIds.length} equipos
+                  </Badge>
+                  {config.groupConfig && (
+                    <Badge variant="outline">
+                      {config.groupConfig.numGroups} grupos
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              {progress && (
+                <div className="text-right">
+                  <div className="text-sm text-muted-foreground">Partidos</div>
+                  <div className="font-bold">{progress.played}/{progress.total}</div>
+                </div>
+              )}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={onReset}
+                className="gap-2"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Reiniciar
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Phase Content */}
+      {phase === "draw" && drawState && (
+        <VisualDraw
+          drawState={drawState}
+          getTeamById={getTeamById}
+          onDrawStep={onDrawStep}
+          onCompleteDraw={onCompleteDraw}
+        />
+      )}
+
+      {phase === "groups" && groups && (
+        <GroupStageView
+          groups={groups}
+          getTeamById={getTeamById}
+          onPlayMatch={onPlayGroupMatch}
+          onSimulateMatchday={onSimulateGroupMatchday}
+          qualificationSpots={qualificationSpots}
+        />
+      )}
+
+      {phase === "knockout" && (
+        <div className="text-center py-12">
+          <Crown className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
+          <h3 className="text-xl font-semibold">Fase de Eliminatorias</h3>
+          <p className="text-muted-foreground">Próximamente...</p>
+        </div>
+      )}
+
+      {phase === "complete" && (
+        <div className="text-center py-12">
+          <div className="inline-flex items-center gap-4 px-8 py-6 rounded-2xl bg-gradient-to-br from-yellow-500/20 to-yellow-500/10 border border-yellow-500/30">
+            <Trophy className="w-16 h-16 text-yellow-500" />
+            <div className="text-left">
+              <p className="text-sm text-muted-foreground">Campeón</p>
+              <p className="text-3xl font-display font-bold">
+                {competitionState.championId 
+                  ? getTeamById(competitionState.championId)?.name 
+                  : "Por definir"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

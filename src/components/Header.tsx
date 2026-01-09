@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { RotateCcw, Trophy, Info } from "lucide-react";
+import { RotateCcw, Trophy, Info, Globe } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -80,6 +81,13 @@ export const Header = ({
           </div>
           
           <div className="flex items-center gap-1">
+            <Link to="/competition">
+              <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/10 gap-2">
+                <Globe className="w-4 h-4" />
+                <span className="hidden sm:inline">Torneos</span>
+              </Button>
+            </Link>
+            
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary-foreground/10">
