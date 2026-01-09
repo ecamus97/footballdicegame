@@ -120,7 +120,36 @@ export const CompetitionConfigDialog = ({
     return { valid: true, message: `${numTeams} equipos válidos` };
   };
   
+  // Validate that all pots have equal number of teams
+  const isValidPotDistribution = (): { valid: boolean; message: string } => {
+    if (!needsGroups) return { valid: true, message: "" };
+    
+    const teamsInPots = pots.reduce((sum, pot) => sum + pot.teamIds.length, 0);
+    const unassignedTeams = selectedTeamIds.filter(id => !pots.some(pot => pot.teamIds.includes(id))).length;
+    
+    if (unassignedTeams > 0) {
+      return { valid: false, message: `${unassignedTeams} equipos sin asignar a bombos` };
+    }
+    
+    const potSizes = pots.map(p => p.teamIds.length).filter(s => s > 0);
+    if (potSizes.length === 0) {
+      return { valid: false, message: "Debes asignar equipos a los bombos" };
+    }
+    
+    const allSameSize = potSizes.every(size => size === potSizes[0]);
+    if (!allSameSize) {
+      return { valid: false, message: "Todos los bombos deben tener la misma cantidad de equipos" };
+    }
+    
+    if (potSizes[0] !== numGroups) {
+      return { valid: false, message: `Cada bombo debe tener ${numGroups} equipos (uno por grupo)` };
+    }
+    
+    return { valid: true, message: `${teamsInPots} equipos distribuidos correctamente` };
+  };
+  
   const validation = isValidTeamCount();
+  const potValidation = isValidPotDistribution();
   const byesNeeded = competitionType === "knockout" ? calculateByes(numTeams) : 0;
   
   // Auto-assign teams to pots based on level
@@ -161,6 +190,11 @@ export const CompetitionConfigDialog = ({
   const handleCreate = () => {
     if (!validation.valid) {
       toast({ title: "Error", description: validation.message, variant: "destructive" });
+      return;
+    }
+    
+    if (needsGroups && !potValidation.valid) {
+      toast({ title: "Error en Bombos", description: potValidation.message, variant: "destructive" });
       return;
     }
     
@@ -648,42 +682,68 @@ export const CompetitionConfigDialog = ({
                 </div>
               </div>
               
-              <div className="space-y-3">
-                {pots.map((pot, potIndex) => (
-                  <div key={pot.id} className="p-3 bg-muted/50 rounded-lg space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="font-medium">{pot.name}</Label>
-                      <Badge variant="outline">{pot.teamIds.length} equipos</Badge>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {pot.teamIds.length === 0 ? (
-                        <span className="text-xs text-muted-foreground">Sin equipos asignados</span>
-                      ) : (
-                        pot.teamIds.map(teamId => {
-                          const team = allTeamsData.find(t => t.id === teamId);
-                          return (
-                            <Badge 
-                              key={teamId} 
-                              variant="secondary"
-                              className="cursor-pointer hover:bg-destructive/20"
-                              onClick={() => {
-                                setPots(prev => prev.map((p, i) => 
-                                  i === potIndex 
-                                    ? { ...p, teamIds: p.teamIds.filter(id => id !== teamId) }
-                                    : p
-                                ));
-                              }}
-                            >
-                              {team?.shortName || teamId}
-                              <Trash2 className="w-3 h-3 ml-1" />
-                            </Badge>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-                ))}
+              {/* Pot Validation Message */}
+              <div className={cn(
+                "p-2 rounded-lg flex items-center gap-2 text-sm",
+                potValidation.valid 
+                  ? "bg-green-500/10 text-green-600"
+                  : "bg-destructive/10 text-destructive"
+              )}>
+                {potValidation.valid ? (
+                  <CheckCircle2 className="w-4 h-4" />
+                ) : (
+                  <AlertCircle className="w-4 h-4" />
+                )}
+                <span>{potValidation.message || `Cada bombo debe tener ${numGroups} equipos`}</span>
               </div>
+              
+              <ScrollArea className="h-[200px]">
+                <div className="space-y-3 pr-4">
+                  {pots.map((pot, potIndex) => {
+                    const expectedCount = numGroups;
+                    const isCorrectCount = pot.teamIds.length === expectedCount;
+                    return (
+                      <div key={pot.id} className={cn(
+                        "p-3 rounded-lg space-y-2",
+                        isCorrectCount ? "bg-muted/50" : "bg-amber-500/10 border border-amber-500/20"
+                      )}>
+                        <div className="flex items-center justify-between">
+                          <Label className="font-medium">{pot.name}</Label>
+                          <Badge variant={isCorrectCount ? "outline" : "destructive"}>
+                            {pot.teamIds.length}/{expectedCount} equipos
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {pot.teamIds.length === 0 ? (
+                            <span className="text-xs text-muted-foreground">Sin equipos asignados</span>
+                          ) : (
+                            pot.teamIds.map(teamId => {
+                              const team = allTeamsData.find(t => t.id === teamId);
+                              return (
+                                <Badge 
+                                  key={teamId} 
+                                  variant="secondary"
+                                  className="cursor-pointer hover:bg-destructive/20"
+                                  onClick={() => {
+                                    setPots(prev => prev.map((p, i) => 
+                                      i === potIndex 
+                                        ? { ...p, teamIds: p.teamIds.filter(id => id !== teamId) }
+                                        : p
+                                    ));
+                                  }}
+                                >
+                                  {team?.shortName || teamId}
+                                  <Trash2 className="w-3 h-3 ml-1" />
+                                </Badge>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
               
               <div className="p-3 border rounded-lg space-y-2">
                 <Label className="text-sm">Equipos sin asignar</Label>

@@ -47,7 +47,7 @@ const Competition = () => {
         {/* Header */}
         <header className="border-b bg-card/50">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+            <Link to="/liga" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
               <Trophy className="w-5 h-5" />
               <span className="text-sm">← Volver a Liga</span>
             </Link>
@@ -149,7 +149,7 @@ const Competition = () => {
       {/* Header */}
       <header className="border-b bg-card/50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+          <Link to="/liga" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <Trophy className="w-5 h-5" />
             <span className="text-sm">← Volver a Liga</span>
           </Link>

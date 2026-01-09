@@ -410,12 +410,12 @@ export const useCompetitionState = () => {
     setCompetitionState(state);
   }, []);
 
-  // Execute a draw step (for visual draw)
+  // Execute a draw step (for visual draw) - Sequential group assignment (A, B, C, etc.)
   const executeDrawStep = useCallback(() => {
     if (!competitionState?.drawState || competitionState.drawState.isComplete) return null;
     
     const drawState = { ...competitionState.drawState };
-    const { pots, remainingTeams, groups } = drawState;
+    const { pots, remainingTeams, groups, drawnTeams } = drawState;
     
     if (remainingTeams.length === 0) {
       drawState.isComplete = true;
@@ -423,34 +423,55 @@ export const useCompetitionState = () => {
       return { type: "complete" as const };
     }
     
-    // Pick random team from current pot
+    // Get current pot
     const currentPot = pots[drawState.currentPotIndex];
+    if (!currentPot) {
+      drawState.isComplete = true;
+      setCompetitionState(prev => prev ? { ...prev, drawState } : null);
+      return { type: "complete" as const };
+    }
+    
     const teamsInPot = remainingTeams.filter(t => t.potId === currentPot.id);
     
     if (teamsInPot.length === 0) {
-      // Move to next pot
-      drawState.currentPotIndex++;
-      drawState.currentTeamIndex = 0;
-      setCompetitionState(prev => prev ? { ...prev, drawState } : null);
-      return executeDrawStep();
+      // Move to next pot - but don't recurse, return null and let next call handle it
+      if (drawState.currentPotIndex < pots.length - 1) {
+        drawState.currentPotIndex++;
+        drawState.currentTeamIndex = 0;
+        setCompetitionState(prev => prev ? { ...prev, drawState } : null);
+        // Return a pot_change event so the UI knows to continue
+        return { type: "pot_change" as const };
+      } else {
+        drawState.isComplete = true;
+        setCompetitionState(prev => prev ? { ...prev, drawState } : null);
+        return { type: "complete" as const };
+      }
     }
     
-    // Random selection
+    // Random selection from current pot
     const randomIndex = Math.floor(Math.random() * teamsInPot.length);
     const selectedTeam = teamsInPot[randomIndex];
     
-    // Find group with space that doesn't have a team from this pot
-    const availableGroups = groups!.filter(g => {
-      const hasSpaceInGroup = g.teamIds.length < 4;
-      const hasTeamFromPot = drawState.drawnTeams.some(
-        dt => dt.groupId === g.id && dt.potId === selectedTeam.potId
-      );
-      return hasSpaceInGroup && !hasTeamFromPot;
-    });
+    // Find next group that needs a team from this pot (sequential order: A, B, C, etc.)
+    // Count how many teams from this pot are already assigned
+    const teamsFromThisPotAssigned = drawnTeams.filter(dt => dt.potId === currentPot.id).length;
     
-    if (availableGroups.length === 0) return null;
+    // The next group to receive a team is the one at index teamsFromThisPotAssigned
+    const targetGroup = groups![teamsFromThisPotAssigned];
     
-    const targetGroup = availableGroups[Math.floor(Math.random() * availableGroups.length)];
+    if (!targetGroup) {
+      // All groups have a team from this pot, move to next pot
+      if (drawState.currentPotIndex < pots.length - 1) {
+        drawState.currentPotIndex++;
+        drawState.currentTeamIndex = 0;
+        setCompetitionState(prev => prev ? { ...prev, drawState } : null);
+        return { type: "pot_change" as const };
+      } else {
+        drawState.isComplete = true;
+        setCompetitionState(prev => prev ? { ...prev, drawState } : null);
+        return { type: "complete" as const };
+      }
+    }
     
     // Update state
     targetGroup.teamIds.push(selectedTeam.teamId);
