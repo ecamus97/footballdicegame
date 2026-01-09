@@ -81,10 +81,10 @@ export const Header = ({
           </div>
           
           <div className="flex items-center gap-1">
-            <Link to="/competition">
+            <Link to="/liga">
               <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/10 gap-2">
                 <Globe className="w-4 h-4" />
-                <span className="hidden sm:inline">Torneos</span>
+                <span className="hidden sm:inline">Liga</span>
               </Button>
             </Link>
             

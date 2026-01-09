@@ -53,28 +53,37 @@ export const VisualDraw = ({
     
     setIsAnimating(true);
 
-    // Find a team to draw
-    const remainingTeam = drawState.remainingTeams[0];
-    if (!remainingTeam) {
+    // Execute the draw step first to get the actual selected team
+    const result = onDrawStep();
+    
+    if (!result) {
       setIsAnimating(false);
       return;
     }
-
-    // Show ball being picked
-    setCurrentBall({ teamId: remainingTeam.teamId, potId: remainingTeam.potId });
     
-    // Wait for pick animation
-    await new Promise(resolve => setTimeout(resolve, 800));
+    // Handle pot change - continue to next draw
+    if (result.type === "pot_change") {
+      setIsAnimating(false);
+      // If in auto mode, the effect will trigger the next draw
+      return;
+    }
     
-    // Execute the actual draw
-    const result = onDrawStep();
-    
-    if (result && result.type === "assign_group" && result.teamId && result.groupId) {
+    if (result.type === "assign_group" && result.teamId && result.groupId) {
+      // Find the pot this team belongs to
+      const teamPot = drawState.pots.find(pot => pot.teamIds.includes(result.teamId!));
+      const potId = teamPot?.id || "pot-1";
+      
+      // Show ball being picked with the ACTUAL selected team
+      setCurrentBall({ teamId: result.teamId, potId });
+      
+      // Wait for pick animation
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
       // Add to drawn balls with animation
       setDrawnBalls(prev => [...prev, {
         teamId: result.teamId!,
         groupId: result.groupId!,
-        potId: remainingTeam.potId,
+        potId,
         isAnimating: true,
       }]);
       
@@ -90,7 +99,7 @@ export const VisualDraw = ({
       setDrawnBalls(prev => prev.map(b => 
         b.teamId === result.teamId ? { ...b, isAnimating: false } : b
       ));
-    } else if (result?.type === "complete") {
+    } else if (result.type === "complete") {
       setCurrentBall(null);
     }
     
