@@ -13,13 +13,13 @@ import {
   DrawPot,
   ThirdPlaceTeam,
   MatchFormat,
+  CustomTeam,
   getNextPowerOf2,
   calculateByes,
   getGroupLetter,
   PenaltyResult
 } from "@/types/competition";
 import { Team } from "@/types/game";
-import { teams as defaultTeams } from "@/data/teams";
 
 // ============= Group Stage Logic =============
 
@@ -332,22 +332,28 @@ const initializeDrawState = (
 export const useCompetitionState = () => {
   const [competitionState, setCompetitionState] = useState<CompetitionState | null>(null);
   const [teamLevels, setTeamLevels] = useState<Record<string, 1 | 2 | 3 | 4>>({});
-  const [teamNames, setTeamNames] = useState<Record<string, { name: string; shortName: string }>>({});
+  const [customTeamsData, setCustomTeamsData] = useState<CustomTeam[]>([]);
 
-  // Get team by ID with current level and name
+  // Get team by ID from custom teams data
   const getTeamById = useCallback((id: string | null): Team | undefined => {
     if (!id) return undefined;
-    const team = defaultTeams.find(t => t.id === id);
-    if (team) {
+    const customTeam = customTeamsData.find(t => t.id === id);
+    if (customTeam) {
       return { 
-        ...team, 
-        name: teamNames[team.id]?.name || team.name,
-        shortName: teamNames[team.id]?.shortName || team.shortName,
-        level: teamLevels[team.id] || team.level 
+        id: customTeam.id,
+        name: customTeam.name,
+        shortName: customTeam.shortName,
+        level: teamLevels[customTeam.id] || customTeam.level 
       };
     }
-    return undefined;
-  }, [teamLevels, teamNames]);
+    // Fallback for legacy team IDs
+    return {
+      id,
+      name: id,
+      shortName: id.slice(0, 3).toUpperCase(),
+      level: teamLevels[id] || 3
+    };
+  }, [teamLevels, customTeamsData]);
 
   // Initialize a new competition
   const initializeCompetition = useCallback((config: CompetitionConfig) => {
@@ -792,7 +798,7 @@ export const useCompetitionState = () => {
     resetCompetition,
     teamLevels,
     setTeamLevels,
-    teamNames,
-    setTeamNames,
+    customTeamsData,
+    setCustomTeamsData,
   };
 };

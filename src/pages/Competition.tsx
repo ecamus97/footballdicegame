@@ -27,9 +27,14 @@ const Competition = () => {
     simulateGroupMatchday,
     resetCompetition,
     teamLevels,
+    setCustomTeamsData,
   } = useCompetitionState();
 
   const handleCreateCompetition = (config: CompetitionConfig) => {
+    // Set custom teams data before initializing
+    if (config.customTeams) {
+      setCustomTeamsData(config.customTeams);
+    }
     initializeCompetition(config);
   };
 
