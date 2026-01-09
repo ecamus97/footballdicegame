@@ -48,6 +48,14 @@ export interface QualifyingConfig {
   directToGroups: number;   // Equipos clasificados directamente a grupos
 }
 
+// Custom team structure for editable teams
+export interface CustomTeam {
+  id: string;
+  name: string;
+  shortName: string;
+  level: 1 | 2 | 3 | 4;
+}
+
 // Full competition configuration
 export interface CompetitionConfig {
   id: string;
@@ -56,6 +64,9 @@ export interface CompetitionConfig {
   
   // Participating teams
   participatingTeamIds: string[];
+  
+  // Custom teams data (for user-defined teams)
+  customTeams?: CustomTeam[];
   
   // League settings (for league and league_playoffs types)
   leagueFormat?: MatchFormat;
