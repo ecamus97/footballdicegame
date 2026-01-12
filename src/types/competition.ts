@@ -210,6 +210,9 @@ export interface CompetitionState {
   config: CompetitionConfig;
   phase: "setup" | "draw" | "qualifying" | "groups" | "knockout" | "complete";
   
+  // For navigation - allows viewing previous phases
+  viewingPhase?: "groups" | "knockout";
+  
   // Phase data
   drawState?: DrawState;
   groups?: Group[];
