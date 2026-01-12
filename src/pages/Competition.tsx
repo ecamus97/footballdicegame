@@ -2,15 +2,14 @@ import { useState } from "react";
 import { useCompetitionState } from "@/hooks/useCompetitionState";
 import { CompetitionConfigDialog } from "@/components/CompetitionConfigDialog";
 import { CompetitionView } from "@/components/CompetitionView";
-import { CompetitionConfig } from "@/types/competition";
-import { Button } from "@/components/ui/button";
+import { GroupMatchSimulator, GroupMatchResult } from "@/components/GroupMatchSimulator";
+import { CompetitionConfig, GroupMatch, getGroupLetter } from "@/types/competition";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
   Trophy, 
   Globe, 
   Users, 
   Crown,
-  ArrowRight,
   Sparkles
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -25,10 +24,17 @@ const Competition = () => {
     simulateGroupMatch,
     confirmGroupMatchResult,
     simulateGroupMatchday,
+    isGroupStageComplete,
+    advanceToKnockout,
     resetCompetition,
     teamLevels,
     setCustomTeamsData,
   } = useCompetitionState();
+
+  // Match simulator state
+  const [selectedMatch, setSelectedMatch] = useState<GroupMatch | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>("");
+  const [selectedGroupName, setSelectedGroupName] = useState<string>("");
 
   const handleCreateCompetition = (config: CompetitionConfig) => {
     // Set custom teams data before initializing
@@ -39,10 +45,35 @@ const Competition = () => {
   };
 
   const handlePlayGroupMatch = (matchId: string, groupId: string) => {
-    const result = simulateGroupMatch(matchId);
-    if (result) {
-      confirmGroupMatchResult(matchId, result);
-    }
+    // Find the match and group
+    if (!competitionState?.groups) return;
+    
+    const group = competitionState.groups.find(g => g.id === groupId);
+    if (!group) return;
+    
+    const match = group.matches.find(m => m.id === matchId);
+    if (!match) return;
+    
+    const groupIndex = competitionState.groups.findIndex(g => g.id === groupId);
+    
+    setSelectedMatch(match);
+    setSelectedGroupId(groupId);
+    setSelectedGroupName(`Grupo ${getGroupLetter(groupIndex)}`);
+  };
+
+  const handleSimulateMatch = (matchId: string): GroupMatchResult | null => {
+    return simulateGroupMatch(matchId);
+  };
+
+  const handleConfirmMatch = (matchId: string, result: GroupMatchResult) => {
+    confirmGroupMatchResult(matchId, result);
+    setSelectedMatch(null);
+    setSelectedGroupId("");
+  };
+
+  const handleCloseSimulator = () => {
+    setSelectedMatch(null);
+    setSelectedGroupId("");
   };
 
   // Show landing if no competition
@@ -170,9 +201,21 @@ const Competition = () => {
           onCompleteDraw={completeDraw}
           onPlayGroupMatch={handlePlayGroupMatch}
           onSimulateGroupMatchday={simulateGroupMatchday}
+          isGroupStageComplete={isGroupStageComplete}
+          onAdvanceToKnockout={advanceToKnockout}
           onReset={resetCompetition}
         />
       </main>
+
+      {/* Match Simulator Dialog */}
+      <GroupMatchSimulator
+        match={selectedMatch}
+        groupName={selectedGroupName}
+        getTeamById={getTeamById}
+        onSimulate={handleSimulateMatch}
+        onConfirm={handleConfirmMatch}
+        onClose={handleCloseSimulator}
+      />
 
       {/* Pitch Pattern Background */}
       <div className="fixed inset-0 pointer-events-none opacity-[0.02] pitch-pattern -z-10" />

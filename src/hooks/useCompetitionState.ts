@@ -521,11 +521,17 @@ export const useCompetitionState = () => {
     } : null);
   }, [competitionState]);
 
-  // Simulate group match
+  // Simulate group match with level-based advantage rules
   const rollDie = useCallback((): number => Math.floor(Math.random() * 6) + 1, []);
   const dieToGoals = useCallback((die: number): number => die - 1, []);
 
-  const simulateGroupMatch = useCallback((matchId: string): { homeGoals: number; awayGoals: number; firstRoll: { home: number; away: number } } | null => {
+  const simulateGroupMatch = useCallback((matchId: string): { 
+    homeGoals: number; 
+    awayGoals: number; 
+    firstRoll: { home: number; away: number };
+    secondRoll?: { home: number; away: number };
+    requiredSecondRoll: boolean;
+  } | null => {
     if (!competitionState?.groups) return null;
     
     let targetMatch: GroupMatch | undefined;
@@ -536,20 +542,84 @@ export const useCompetitionState = () => {
     
     if (!targetMatch || targetMatch.played) return null;
     
-    const homeRoll = rollDie();
-    const awayRoll = rollDie();
+    // Get teams and their levels
+    const homeTeam = getTeamById(targetMatch.homeTeamId);
+    const awayTeam = getTeamById(targetMatch.awayTeamId);
+    
+    if (!homeTeam || !awayTeam) return null;
+    
+    const homeLevel = homeTeam.level;
+    const awayLevel = awayTeam.level;
+    const levelDiff = Math.abs(homeLevel - awayLevel);
+    const strongerIsHome = homeLevel < awayLevel;
+    
+    // First roll
+    const homeRoll1 = rollDie();
+    const awayRoll1 = rollDie();
+    const homeGoals1 = dieToGoals(homeRoll1);
+    const awayGoals1 = dieToGoals(awayRoll1);
+    
+    // Determine if second roll is needed based on rules
+    let requiredSecondRoll = false;
+    let useSecondRoll = false;
+    
+    // Same level: No advantage
+    if (levelDiff === 0) {
+      requiredSecondRoll = false;
+    }
+    // 1 level difference: Only if stronger is HOME and doesn't win
+    else if (levelDiff === 1) {
+      if (strongerIsHome) {
+        const strongerWon = homeGoals1 > awayGoals1;
+        requiredSecondRoll = !strongerWon;
+      } else {
+        // Stronger is away with 1 level diff = no advantage
+        requiredSecondRoll = false;
+      }
+    }
+    // 2+ levels difference: Stronger always has advantage regardless of venue
+    else {
+      const strongerWon = strongerIsHome 
+        ? homeGoals1 > awayGoals1 
+        : awayGoals1 > homeGoals1;
+      requiredSecondRoll = !strongerWon;
+    }
+    
+    // Calculate final result
+    let finalHomeGoals = homeGoals1;
+    let finalAwayGoals = awayGoals1;
+    let secondRoll: { home: number; away: number } | undefined;
+    
+    if (requiredSecondRoll) {
+      // Second roll (will be triggered by UI, but we pre-calculate)
+      const homeRoll2 = rollDie();
+      const awayRoll2 = rollDie();
+      secondRoll = { home: homeRoll2, away: awayRoll2 };
+      
+      // Use second roll result as final
+      finalHomeGoals = dieToGoals(homeRoll2);
+      finalAwayGoals = dieToGoals(awayRoll2);
+    }
     
     return {
-      homeGoals: dieToGoals(homeRoll),
-      awayGoals: dieToGoals(awayRoll),
-      firstRoll: { home: homeRoll, away: awayRoll },
+      homeGoals: finalHomeGoals,
+      awayGoals: finalAwayGoals,
+      firstRoll: { home: homeRoll1, away: awayRoll1 },
+      secondRoll,
+      requiredSecondRoll,
     };
-  }, [competitionState, rollDie, dieToGoals]);
+  }, [competitionState, rollDie, dieToGoals, getTeamById]);
 
   // Confirm group match result
   const confirmGroupMatchResult = useCallback((
     matchId: string, 
-    result: { homeGoals: number; awayGoals: number; firstRoll: { home: number; away: number } }
+    result: { 
+      homeGoals: number; 
+      awayGoals: number; 
+      firstRoll: { home: number; away: number };
+      secondRoll?: { home: number; away: number };
+      requiredSecondRoll: boolean;
+    }
   ) => {
     if (!competitionState?.groups) return;
     
