@@ -1014,9 +1014,12 @@ export const useCompetitionState = () => {
           team1Goals: result.team1Goals,
           team2Goals: result.team2Goals,
           played: true,
+          firstRoll: { home: result.firstRoll.team1, away: result.firstRoll.team2 },
+          secondRoll: result.secondRoll ? { home: result.secondRoll.team1, away: result.secondRoll.team2 } : undefined,
           penalties: result.penalties ? {
             team1Penalties: result.penalties.team1Penalties,
             team2Penalties: result.penalties.team2Penalties,
+            rounds: result.penalties.rounds,
           } : undefined,
         };
       });
