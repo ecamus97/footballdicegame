@@ -1,8 +1,8 @@
 import { KnockoutSeries, KnockoutMatch, KnockoutRound, CompetitionConfig } from "@/types/competition";
 import { Team } from "@/types/game";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Crown, Play, Trophy } from "lucide-react";
 
@@ -51,45 +51,87 @@ export const KnockoutBracketView = ({
     return null;
   };
 
-  // Get match display info
-  const getMatchDisplay = (s: KnockoutSeries) => {
+  // Get match display info for each series showing all results
+  const getSeriesDisplayInfo = (s: KnockoutSeries) => {
     const leg1 = matches.find(m => m.id === s.leg1Id);
     const leg2 = s.leg2Id ? matches.find(m => m.id === s.leg2Id) : null;
+    const isTwoLegs = !!s.leg2Id;
     
     if (s.isBye) {
-      return { display: "Pasa directo", isComplete: true };
+      return { 
+        status: "bye" as const, 
+        leg1Text: null, 
+        leg2Text: null, 
+        aggregateText: null,
+        penaltiesText: null,
+      };
     }
     
     if (!leg1?.played) {
-      return { display: "Por jugar", isComplete: false };
+      return { 
+        status: "pending" as const, 
+        leg1Text: null, 
+        leg2Text: null, 
+        aggregateText: null,
+        penaltiesText: null,
+      };
     }
     
-    const isTwoLegs = !!s.leg2Id;
+    // Get leg1 result - team1Id in leg1 is home
+    const leg1Team1Name = getTeamById(leg1.team1Id)?.name || "?";
+    const leg1Team2Name = getTeamById(leg1.team2Id)?.name || "?";
+    const leg1Text = `${leg1.team1Goals}-${leg1.team2Goals}`;
     
     if (isTwoLegs && !leg2?.played) {
-      // Show first leg result
       return { 
-        display: `Ida: ${leg1.team1Goals}-${leg1.team2Goals}`,
-        isComplete: false,
-        leg1Result: `${leg1.team1Goals}-${leg1.team2Goals}`,
+        status: "waiting_leg2" as const, 
+        leg1Text,
+        leg1Home: leg1Team1Name,
+        leg1Away: leg1Team2Name,
+        leg2Text: null, 
+        aggregateText: null,
+        penaltiesText: null,
       };
     }
     
     // Both legs played or single leg
-    if (isTwoLegs) {
-      const agg1 = s.team1Aggregate || 0;
-      const agg2 = s.team2Aggregate || 0;
+    if (isTwoLegs && leg2?.played) {
+      const leg2Team1Name = getTeamById(leg2.team1Id)?.name || "?";
+      const leg2Text = `${leg2.team1Goals}-${leg2.team2Goals}`;
+      
+      // Check for penalties in leg2
+      let penaltiesText = null;
+      if (leg2.penalties) {
+        penaltiesText = `(${leg2.penalties.team1Penalties}-${leg2.penalties.team2Penalties} pen.)`;
+      }
+      
       return {
-        display: `Global: ${agg1}-${agg2}`,
-        isComplete: true,
-        leg1Result: `${leg1.team1Goals}-${leg1.team2Goals}`,
-        leg2Result: `${leg2?.team1Goals}-${leg2?.team2Goals}`,
+        status: "complete" as const,
+        leg1Text,
+        leg1Home: leg1Team1Name,
+        leg1Away: leg1Team2Name,
+        leg2Text,
+        leg2Home: leg2Team1Name,
+        leg2Away: getTeamById(leg2.team2Id)?.name || "?",
+        aggregateText: `${s.team1Aggregate}-${s.team2Aggregate}`,
+        penaltiesText,
       };
     }
     
+    // Single leg completed
+    let penaltiesText = null;
+    if (leg1.penalties) {
+      penaltiesText = `(${leg1.penalties.team1Penalties}-${leg1.penalties.team2Penalties} pen.)`;
+    }
+    
     return {
-      display: `${leg1.team1Goals}-${leg1.team2Goals}`,
-      isComplete: true,
+      status: "complete" as const,
+      leg1Text,
+      leg1Home: leg1Team1Name,
+      leg1Away: leg1Team2Name,
+      leg2Text: null,
+      aggregateText: null,
+      penaltiesText,
     };
   };
 
@@ -101,14 +143,14 @@ export const KnockoutBracketView = ({
       </div>
 
       {/* Horizontal Bracket */}
-      <div className="overflow-x-auto pb-4">
-        <div className="flex gap-4 min-w-max">
+      <ScrollArea className="w-full">
+        <div className="flex gap-4 min-w-max pb-4">
           {rounds.map((round, roundIndex) => {
             const roundSeries = series.filter(s => s.round === round);
             const isLastRound = roundIndex === rounds.length - 1;
             
             return (
-              <div key={round} className="flex flex-col min-w-[220px]">
+              <div key={round} className="flex flex-col min-w-[260px]">
                 <h4 className={cn(
                   "text-sm font-semibold mb-3 text-center px-4 py-2 rounded-lg",
                   isLastRound ? "bg-gold/20 text-gold-dark" : "bg-purple-500/10 text-purple-600"
@@ -126,9 +168,8 @@ export const KnockoutBracketView = ({
                   {roundSeries.map((s) => {
                     const team1 = getTeamById(s.team1Id);
                     const team2 = getTeamById(s.team2Id);
-                    const winner = getTeamById(s.winnerId);
                     const nextMatch = getNextPlayableMatch(s);
-                    const matchDisplay = getMatchDisplay(s);
+                    const displayInfo = getSeriesDisplayInfo(s);
                     
                     return (
                       <div
@@ -160,7 +201,7 @@ export const KnockoutBracketView = ({
                             )}
                           </div>
                           <span className={cn(
-                            "font-bold text-sm w-6 text-right",
+                            "font-bold text-sm w-8 text-right",
                             s.winnerId === s.team1Id && "text-green-600"
                           )}>
                             {s.winnerId ? s.team1Aggregate : "-"}
@@ -188,33 +229,49 @@ export const KnockoutBracketView = ({
                             )}
                           </div>
                           <span className={cn(
-                            "font-bold text-sm w-6 text-right",
+                            "font-bold text-sm w-8 text-right",
                             s.winnerId === s.team2Id && "text-green-600"
                           )}>
                             {s.winnerId ? s.team2Aggregate : "-"}
                           </span>
                         </div>
 
-                        {/* Match info or play button */}
+                        {/* Match details / Play button */}
                         {s.isBye ? (
                           <div className="text-xs text-center text-muted-foreground py-2 border-t bg-muted/30">
                             Pasa directo
                           </div>
                         ) : nextMatch && onPlayMatch ? (
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="w-full rounded-t-none gap-1"
-                            onClick={() => onPlayMatch(nextMatch.id, s.id)}
-                          >
-                            <Play className="w-3 h-3" />
-                            {s.leg2Id && nextMatch.id === s.leg2Id ? "Vuelta" : s.leg2Id ? "Ida" : "Jugar"}
-                          </Button>
-                        ) : matchDisplay.leg1Result && !s.winnerId && (
-                          <div className="text-xs text-center text-muted-foreground py-2 border-t bg-muted/30">
-                            {matchDisplay.display}
+                          <div className="border-t">
+                            {/* Show previous leg result if exists */}
+                            {displayInfo.status === "waiting_leg2" && displayInfo.leg1Text && (
+                              <div className="text-xs text-center text-muted-foreground py-1 bg-muted/20 border-b">
+                                Ida: {displayInfo.leg1Text}
+                              </div>
+                            )}
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="w-full rounded-t-none gap-1"
+                              onClick={() => onPlayMatch(nextMatch.id, s.id)}
+                            >
+                              <Play className="w-3 h-3" />
+                              {s.leg2Id && nextMatch.id === s.leg2Id ? "Vuelta" : s.leg2Id ? "Ida" : "Jugar"}
+                            </Button>
                           </div>
-                        )}
+                        ) : displayInfo.status === "complete" || displayInfo.status === "waiting_leg2" ? (
+                          <div className="text-xs text-center text-muted-foreground py-2 border-t bg-muted/30 space-y-0.5">
+                            {displayInfo.leg1Text && (
+                              <div>Ida: {displayInfo.leg1Text}</div>
+                            )}
+                            {displayInfo.leg2Text && (
+                              <div>Vuelta: {displayInfo.leg2Text}</div>
+                            )}
+                            {displayInfo.penaltiesText && (
+                              <div className="text-purple-600 font-medium">{displayInfo.penaltiesText}</div>
+                            )}
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}
@@ -245,7 +302,7 @@ export const KnockoutBracketView = ({
             </div>
           </div>
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 };

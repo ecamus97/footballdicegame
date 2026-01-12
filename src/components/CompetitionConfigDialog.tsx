@@ -387,9 +387,9 @@ export const CompetitionConfigDialog = ({
             
             {/* Teams Tab */}
             <TabsContent value="teams" className="m-0 h-full overflow-hidden flex flex-col">
-              <div className="space-y-4 flex-1 flex flex-col overflow-hidden">
+              <div className="space-y-4 flex-1 flex flex-col min-h-0">
                 {/* Team count selector */}
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-shrink-0">
                   <div className="flex-1 space-y-2">
                     <Label>Cantidad de equipos participantes</Label>
                     <Select
@@ -424,21 +424,66 @@ export const CompetitionConfigDialog = ({
                 </div>
                 
                 {needsGroups && numTeams > 0 && (
-                  <div className="p-3 bg-muted rounded-lg text-sm">
+                  <div className="p-3 bg-muted rounded-lg text-sm flex-shrink-0">
                     <strong>{numGroups}</strong> grupos de <strong>4</strong> equipos
                   </div>
                 )}
                 
                 {competitionType === "knockout" && byesNeeded > 0 && (
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm text-amber-600">
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm text-amber-600 flex-shrink-0">
                     <strong>{byesNeeded}</strong> equipos pasarán directamente a la siguiente ronda (byes)
                   </div>
                 )}
                 
+                {/* Import from Excel */}
+                <div className="flex-shrink-0">
+                  <Label className="text-sm mb-2 block">Importar desde Excel</Label>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      
+                      try {
+                        const text = await file.text();
+                        const lines = text.split('\n').filter(l => l.trim());
+                        const newTeams = [...customTeams];
+                        
+                        lines.forEach((line, index) => {
+                          if (index >= teamCount) return;
+                          const parts = line.split(/[,;\t]/).map(p => p.trim().replace(/"/g, ''));
+                          const name = parts[0];
+                          const levelStr = parts[1];
+                          
+                          if (name && newTeams[index]) {
+                            newTeams[index] = {
+                              ...newTeams[index],
+                              name: name,
+                              shortName: name.slice(0, 3).toUpperCase(),
+                              level: levelStr ? (parseInt(levelStr) as 1 | 2 | 3 | 4) || newTeams[index].level : newTeams[index].level,
+                            };
+                          }
+                        });
+                        
+                        setCustomTeams(newTeams);
+                        toast({ title: "Equipos importados", description: `Se actualizaron ${Math.min(lines.length, teamCount)} equipos` });
+                      } catch (error) {
+                        toast({ title: "Error", description: "No se pudo leer el archivo", variant: "destructive" });
+                      }
+                      e.target.value = '';
+                    }}
+                    className="text-sm file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Formato CSV: Nombre,Nivel (1-4) - Una línea por equipo
+                  </p>
+                </div>
+                
                 {/* Teams list */}
-                <div className="flex-1 overflow-hidden">
-                  <Label className="text-sm mb-2 block">Configurar equipos (clic en nombre para editar)</Label>
-                  <ScrollArea className="h-[280px]">
+                <div className="flex-1 min-h-0 border rounded-lg">
+                  <Label className="text-sm p-3 block border-b">Configurar equipos (clic en nombre para editar)</Label>
+                  <ScrollArea className="h-[250px]">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pr-4">
                       {customTeams.map((team) => (
                         <div
@@ -725,8 +770,8 @@ export const CompetitionConfigDialog = ({
                 </div>
                 
                 {/* Pots and unassigned teams in scrollable container */}
-                <div className="flex-1 min-h-0 border rounded-lg">
-                  <ScrollArea className="h-[300px]">
+                <div className="flex-1 min-h-0 border rounded-lg overflow-hidden">
+                  <ScrollArea className="h-[280px]">
                     <div className="space-y-3 p-3">
                       {/* Pots */}
                       {pots.map((pot, potIndex) => {

@@ -934,15 +934,31 @@ export const useCompetitionState = () => {
     
     if (isSingleLeg || isSecondLeg) {
       // Calculate aggregate
-      let team1Agg = finalTeam1Goals;
-      let team2Agg = finalTeam2Goals;
+      // For second leg:
+      // - match.team1Id = series.team2Id (home in vuelta)
+      // - match.team2Id = series.team1Id (away in vuelta)
+      // - series.team1Aggregate = goals scored by series.team1 in leg1
+      // - series.team2Aggregate = goals scored by series.team2 in leg1
+      // 
+      // In second leg match result:
+      // - finalTeam1Goals = goals by match.team1 (series.team2) in vuelta
+      // - finalTeam2Goals = goals by match.team2 (series.team1) in vuelta
+      
+      let seriesTeam1TotalGoals = 0;
+      let seriesTeam2TotalGoals = 0;
       
       if (isSecondLeg) {
-        team1Agg += series.team1Aggregate || 0;
-        team2Agg += series.team2Aggregate || 0;
+        // series.team1's total = leg1 goals + vuelta goals (as away in vuelta, i.e., finalTeam2Goals)
+        // series.team2's total = leg1 goals + vuelta goals (as home in vuelta, i.e., finalTeam1Goals)
+        seriesTeam1TotalGoals = (series.team1Aggregate || 0) + finalTeam2Goals;
+        seriesTeam2TotalGoals = (series.team2Aggregate || 0) + finalTeam1Goals;
+      } else {
+        // Single leg
+        seriesTeam1TotalGoals = finalTeam1Goals;
+        seriesTeam2TotalGoals = finalTeam2Goals;
       }
       
-      if (team1Agg === team2Agg) {
+      if (seriesTeam1TotalGoals === seriesTeam2TotalGoals) {
         // Penalties needed
         const penaltyRounds: { team1: number; team2: number }[] = [];
         let team1Pens = 0;
@@ -967,13 +983,20 @@ export const useCompetitionState = () => {
         }
         
         penalties = { team1Penalties: team1Pens, team2Penalties: team2Pens, rounds: penaltyRounds };
-        winnerId = team1Pens > team2Pens 
-          ? (isSecondLeg ? series.team1Id! : match.team1Id!)
-          : (isSecondLeg ? series.team2Id! : match.team2Id!);
+        // winnerId should be the match.team1Id or match.team2Id of the current match
+        winnerId = team1Pens > team2Pens ? match.team1Id! : match.team2Id!;
       } else {
-        winnerId = team1Agg > team2Agg 
-          ? (isSecondLeg ? series.team1Id! : match.team1Id!)
-          : (isSecondLeg ? series.team2Id! : match.team2Id!);
+        // Determine winner - in second leg context, we return match.team1Id or match.team2Id
+        if (isSecondLeg) {
+          // seriesTeam1 = match.team2, seriesTeam2 = match.team1
+          winnerId = seriesTeam1TotalGoals > seriesTeam2TotalGoals 
+            ? match.team2Id! // series.team1 won
+            : match.team1Id!; // series.team2 won
+        } else {
+          winnerId = seriesTeam1TotalGoals > seriesTeam2TotalGoals 
+            ? match.team1Id! 
+            : match.team2Id!;
+        }
       }
     }
     
@@ -1035,23 +1058,49 @@ export const useCompetitionState = () => {
         const isSecondLeg = s.leg2Id === matchId;
         const isSingleLeg = !s.leg2Id;
         
+        // Get the match to understand team mapping
+        // In leg1: team1Id = series.team1Id (home), team2Id = series.team2Id (away)
+        // In leg2: team1Id = series.team2Id (home), team2Id = series.team1Id (away)
+        // So we need to correctly assign goals to series teams
+        
         // Update aggregates
         if (isSingleLeg) {
+          // Single leg: match.team1 = series.team1, match.team2 = series.team2
           updated.team1Aggregate = result.team1Goals;
           updated.team2Aggregate = result.team2Goals;
         } else if (!isSecondLeg) {
-          // First leg - just store the goals
-          updated.team1Aggregate = result.team2Goals; // away goals for series team1
-          updated.team2Aggregate = result.team1Goals; // home goals for series team2
+          // First leg: series.team1 is home (match.team1), series.team2 is away (match.team2)
+          // So series.team1's goals = match.team1Goals (home goals)
+          // And series.team2's goals = match.team2Goals (away goals)
+          updated.team1Aggregate = result.team1Goals;
+          updated.team2Aggregate = result.team2Goals;
         } else {
-          // Second leg - add to existing
-          updated.team1Aggregate = (s.team1Aggregate || 0) + result.team1Goals;
-          updated.team2Aggregate = (s.team2Aggregate || 0) + result.team2Goals;
+          // Second leg: series.team2 is home (match.team1), series.team1 is away (match.team2)
+          // So in the second leg:
+          // match.team1Goals = series.team2's home goals
+          // match.team2Goals = series.team1's away goals
+          updated.team1Aggregate = (s.team1Aggregate || 0) + result.team2Goals;
+          updated.team2Aggregate = (s.team2Aggregate || 0) + result.team1Goals;
         }
         
         // Set winner if determined
         if (result.winnerId) {
-          updated.winnerId = result.winnerId;
+          // Map the winnerId from match context to series context
+          if (isSecondLeg) {
+            // In second leg, match.team1Id = series.team2Id
+            // So if winnerId = match.team1Id, it means series.team2 won
+            // And if winnerId = match.team2Id, it means series.team1 won
+            const leg2Match = prev.knockoutMatches.find(m => m.id === matchId);
+            if (leg2Match) {
+              if (result.winnerId === leg2Match.team1Id) {
+                updated.winnerId = s.team2Id;
+              } else {
+                updated.winnerId = s.team1Id;
+              }
+            }
+          } else {
+            updated.winnerId = result.winnerId;
+          }
         } else if (isSingleLeg || isSecondLeg) {
           if (updated.team1Aggregate > updated.team2Aggregate) {
             updated.winnerId = s.team1Id;
@@ -1068,7 +1117,7 @@ export const useCompetitionState = () => {
       if (completedSeries?.winnerId) {
         // Find next round series and update teams
         const currentRound = completedSeries.round;
-        const rounds: KnockoutRound[] = ["round_of_64", "round_of_32", "round_of_16", "quarterfinals", "semifinals", "final"];
+        const rounds: KnockoutRound[] = ["preliminary_1", "preliminary_2", "preliminary_3", "round_of_64", "round_of_32", "round_of_16", "quarterfinals", "semifinals", "final"];
         const currentRoundIndex = rounds.indexOf(currentRound);
         const nextRound = rounds[currentRoundIndex + 1];
         
