@@ -201,8 +201,8 @@ export const KnockoutMatchSimulator = ({
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4">
-        <div className="space-y-6 pb-4">
+        <ScrollArea className="flex-1 min-h-0 pr-4">
+        <div className="space-y-6 pb-6">
           {/* Teams Display */}
           <div className="flex items-center justify-between gap-4 p-4 bg-secondary/50 rounded-xl">
             <div className="flex-1 text-center">
