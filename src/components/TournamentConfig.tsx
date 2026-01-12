@@ -261,7 +261,7 @@ export const TournamentConfig = ({
           <Settings2 className="w-5 h-5" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">Configuración del Torneo</DialogTitle>
           <DialogDescription>
@@ -269,7 +269,7 @@ export const TournamentConfig = ({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="general" className="flex-1 overflow-hidden flex flex-col">
+        <Tabs defaultValue="general" className="flex-1 min-h-0 overflow-hidden flex flex-col">
           <TabsList className="w-full grid grid-cols-4">
             <TabsTrigger value="general" className="gap-2">
               <Trophy className="w-4 h-4" />
@@ -289,7 +289,7 @@ export const TournamentConfig = ({
             </TabsTrigger>
           </TabsList>
 
-          <ScrollArea className="flex-1 mt-4">
+          <ScrollArea className="flex-1 mt-4 min-h-0">
             <TabsContent value="general" className="m-0 pr-4">
               <ScrollArea className="h-[350px]">
                 <div className="space-y-6 pr-4">

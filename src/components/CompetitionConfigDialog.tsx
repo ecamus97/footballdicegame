@@ -308,7 +308,7 @@ export const CompetitionConfigDialog = ({
           Nueva Competencia
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl flex items-center gap-2">
             <Trophy className="w-6 h-6" />
@@ -319,7 +319,7 @@ export const CompetitionConfigDialog = ({
           </DialogDescription>
         </DialogHeader>
         
-        <Tabs defaultValue="type" className="flex-1 overflow-hidden flex flex-col">
+        <Tabs defaultValue="type" className="flex-1 min-h-0 overflow-hidden flex flex-col">
           <TabsList className="w-full grid grid-cols-5">
             <TabsTrigger value="type" className="gap-1">
               <Trophy className="w-4 h-4" />
@@ -343,7 +343,7 @@ export const CompetitionConfigDialog = ({
             </TabsTrigger>
           </TabsList>
           
-          <div className="flex-1 mt-4 overflow-hidden">
+          <div className="flex-1 mt-4 min-h-0 overflow-hidden">
             {/* Type Tab */}
             <TabsContent value="type" className="m-0 h-full overflow-y-auto pr-4">
               <div className="space-y-4">
