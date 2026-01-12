@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CompetitionState, CompetitionConfig, getGroupLetter } from "@/types/competition";
+import { CompetitionState, CompetitionConfig, getGroupLetter, KnockoutRound, KnockoutMatch, KnockoutSeries } from "@/types/competition";
 import { Team } from "@/types/game";
 import { VisualDraw } from "./VisualDraw";
 import { GroupStageView } from "./GroupStageView";
@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Settings,
   RotateCcw,
-  ArrowRight
+  ArrowRight,
+  ArrowLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,8 +29,22 @@ interface CompetitionViewProps {
   onSimulateGroupMatchday: (matchday: number) => void;
   isGroupStageComplete: boolean;
   onAdvanceToKnockout: () => void;
+  onPlayKnockoutMatch?: (matchId: string, seriesId: string) => void;
+  onGoToPhase?: (phase: "groups" | "knockout") => void;
   onReset: () => void;
 }
+
+const roundNames: Record<KnockoutRound, string> = {
+  preliminary_1: "Ronda Previa 1",
+  preliminary_2: "Ronda Previa 2",
+  preliminary_3: "Ronda Previa 3",
+  round_of_64: "Treintaidosavos",
+  round_of_32: "Dieciseisavos",
+  round_of_16: "Octavos de Final",
+  quarterfinals: "Cuartos de Final",
+  semifinals: "Semifinales",
+  final: "Final",
+};
 
 export const CompetitionView = ({
   competitionState,
@@ -40,9 +55,14 @@ export const CompetitionView = ({
   onSimulateGroupMatchday,
   isGroupStageComplete,
   onAdvanceToKnockout,
+  onPlayKnockoutMatch,
+  onGoToPhase,
   onReset,
 }: CompetitionViewProps) => {
-  const { config, phase, drawState, groups, knockoutMatches, knockoutSeries } = competitionState;
+  const { config, phase, drawState, groups, knockoutMatches, knockoutSeries, viewingPhase } = competitionState;
+
+  // Determine what phase to view
+  const displayPhase = viewingPhase || phase;
 
   // Get phase info
   const getPhaseInfo = () => {
@@ -67,13 +87,17 @@ export const CompetitionView = ({
 
   // Calculate progress
   const getProgress = () => {
-    if (phase === "groups" && groups) {
+    if ((displayPhase === "groups" || phase === "groups") && groups) {
       const totalMatches = groups.reduce((acc, g) => acc + g.matches.length, 0);
       const playedMatches = groups.reduce(
         (acc, g) => acc + g.matches.filter(m => m.played).length, 
         0
       );
-      return { played: playedMatches, total: totalMatches };
+      return { played: playedMatches, total: totalMatches, label: "Fase de Grupos" };
+    }
+    if ((displayPhase === "knockout" || phase === "knockout") && knockoutMatches) {
+      const playedMatches = knockoutMatches.filter(m => m.played).length;
+      return { played: playedMatches, total: knockoutMatches.length, label: "Eliminatorias" };
     }
     return null;
   };
@@ -86,6 +110,10 @@ export const CompetitionView = ({
     : config.groupConfig?.qualificationRule === "first_second" 
       ? 2 
       : 2;
+
+  // Check if can navigate between phases
+  const canGoToGroups = (phase === "knockout" || phase === "complete") && groups && groups.length > 0;
+  const canGoToKnockout = displayPhase === "groups" && phase !== "groups" && knockoutSeries && knockoutSeries.length > 0;
 
   return (
     <div className="space-y-6">
@@ -118,7 +146,7 @@ export const CompetitionView = ({
             <div className="flex items-center gap-3">
               {progress && (
                 <div className="text-right">
-                  <div className="text-sm text-muted-foreground">Partidos</div>
+                  <div className="text-sm text-muted-foreground">{progress.label}</div>
                   <div className="font-bold">{progress.played}/{progress.total}</div>
                 </div>
               )}
@@ -135,6 +163,34 @@ export const CompetitionView = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Phase Navigation */}
+      {(canGoToGroups || canGoToKnockout) && (
+        <div className="flex gap-2">
+          {canGoToGroups && displayPhase !== "groups" && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => onGoToPhase?.("groups")}
+              className="gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Ver Fase de Grupos
+            </Button>
+          )}
+          {displayPhase === "groups" && (phase === "knockout" || phase === "complete") && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => onGoToPhase?.("knockout")}
+              className="gap-2"
+            >
+              Ver Eliminatorias
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Advance to Knockout Button */}
       {phase === "groups" && isGroupStageComplete && config.knockoutConfig && (
@@ -164,7 +220,7 @@ export const CompetitionView = ({
         />
       )}
 
-      {phase === "groups" && groups && (
+      {displayPhase === "groups" && groups && (
         <GroupStageView
           groups={groups}
           getTeamById={getTeamById}
@@ -174,16 +230,18 @@ export const CompetitionView = ({
         />
       )}
 
-      {phase === "knockout" && knockoutSeries && knockoutMatches && (
+      {(displayPhase === "knockout" || phase === "knockout") && knockoutSeries && knockoutMatches && displayPhase !== "groups" && (
         <KnockoutBracketView
           series={knockoutSeries}
           matches={knockoutMatches}
           getTeamById={getTeamById}
           config={config}
+          onPlayMatch={onPlayKnockoutMatch}
+          roundNames={roundNames}
         />
       )}
 
-      {phase === "complete" && (
+      {phase === "complete" && displayPhase !== "groups" && (
         <div className="text-center py-12">
           <div className="inline-flex items-center gap-4 px-8 py-6 rounded-2xl bg-gradient-to-br from-yellow-500/20 to-yellow-500/10 border border-yellow-500/30">
             <Trophy className="w-16 h-16 text-yellow-500" />
