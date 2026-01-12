@@ -193,7 +193,7 @@ export const KnockoutMatchSimulator = ({
 
   return (
     <Dialog open={!!match} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl tracking-wide flex items-center gap-2">
             <Shield className="w-5 h-5" />
