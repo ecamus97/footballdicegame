@@ -679,8 +679,8 @@ export const CompetitionConfigDialog = ({
             </TabsContent>
             
             {/* Pots Tab */}
-            <TabsContent value="pots" className="m-0 h-full overflow-hidden flex flex-col">
-              <div className="space-y-4 flex-1 flex flex-col overflow-hidden">
+            <TabsContent value="pots" className="m-0 h-full flex flex-col">
+              <div className="space-y-4 flex-1 flex flex-col min-h-0">
                 <div className="flex items-center justify-between">
                   <Label className="text-base">Configuración de Bombos</Label>
                   <Button variant="outline" size="sm" onClick={autoAssignPots}>
@@ -725,9 +725,9 @@ export const CompetitionConfigDialog = ({
                 </div>
                 
                 {/* Pots and unassigned teams in scrollable container */}
-                <div className="flex-1 overflow-hidden">
-                  <ScrollArea className="h-full">
-                    <div className="space-y-3 pr-4 pb-4">
+                <div className="flex-1 min-h-0 border rounded-lg">
+                  <ScrollArea className="h-[300px]">
+                    <div className="space-y-3 p-3">
                       {/* Pots */}
                       {pots.map((pot, potIndex) => {
                         const expectedCount = numGroups;
@@ -747,13 +747,13 @@ export const CompetitionConfigDialog = ({
                               {pot.teamIds.length === 0 ? (
                                 <span className="text-xs text-muted-foreground">Sin equipos asignados</span>
                               ) : (
-                                pot.teamIds.map(teamId => {
+                              pot.teamIds.map(teamId => {
                                   const team = customTeams.find(t => t.id === teamId);
                                   return (
                                     <Badge 
                                       key={teamId} 
                                       variant="secondary"
-                                      className="cursor-pointer hover:bg-destructive/20"
+                                      className="cursor-pointer hover:bg-destructive/20 text-xs"
                                       onClick={() => {
                                         setPots(prev => prev.map((p, i) => 
                                           i === potIndex 
@@ -762,7 +762,7 @@ export const CompetitionConfigDialog = ({
                                         ));
                                       }}
                                     >
-                                      {team?.shortName || team?.name || teamId}
+                                      {team?.name || teamId}
                                       <Trash2 className="w-3 h-3 ml-1" />
                                     </Badge>
                                   );
@@ -790,8 +790,8 @@ export const CompetitionConfigDialog = ({
                                   ));
                                 }}
                               >
-                                <SelectTrigger className="w-auto h-6 text-xs">
-                                  <span>{team.shortName || team.name}</span>
+                                <SelectTrigger className="w-auto h-6 text-xs max-w-[140px]">
+                                  <span className="truncate">{team.name}</span>
                                 </SelectTrigger>
                                 <SelectContent>
                                   {pots.map(pot => (

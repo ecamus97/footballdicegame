@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { CompetitionState, CompetitionConfig } from "@/types/competition";
+import { CompetitionState, CompetitionConfig, getGroupLetter } from "@/types/competition";
 import { Team } from "@/types/game";
 import { VisualDraw } from "./VisualDraw";
 import { GroupStageView } from "./GroupStageView";
+import { KnockoutBracketView } from "./KnockoutBracketView";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { 
   Shuffle, 
   Users, 
@@ -14,7 +14,8 @@ import {
   Crown,
   ChevronRight,
   Settings,
-  RotateCcw
+  RotateCcw,
+  ArrowRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,8 @@ interface CompetitionViewProps {
   onCompleteDraw: () => void;
   onPlayGroupMatch: (matchId: string, groupId: string) => void;
   onSimulateGroupMatchday: (matchday: number) => void;
+  isGroupStageComplete: boolean;
+  onAdvanceToKnockout: () => void;
   onReset: () => void;
 }
 
@@ -35,9 +38,11 @@ export const CompetitionView = ({
   onCompleteDraw,
   onPlayGroupMatch,
   onSimulateGroupMatchday,
+  isGroupStageComplete,
+  onAdvanceToKnockout,
   onReset,
 }: CompetitionViewProps) => {
-  const { config, phase, drawState, groups } = competitionState;
+  const { config, phase, drawState, groups, knockoutMatches, knockoutSeries } = competitionState;
 
   // Get phase info
   const getPhaseInfo = () => {
@@ -131,6 +136,24 @@ export const CompetitionView = ({
         </CardContent>
       </Card>
 
+      {/* Advance to Knockout Button */}
+      {phase === "groups" && isGroupStageComplete && config.knockoutConfig && (
+        <Card className="bg-gradient-to-r from-purple-500/10 to-purple-500/5 border-purple-500/30">
+          <CardContent className="py-4 flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-purple-600">¡Fase de grupos completada!</h3>
+              <p className="text-sm text-muted-foreground">
+                Los equipos clasificados están listos para las eliminatorias
+              </p>
+            </div>
+            <Button onClick={onAdvanceToKnockout} className="gap-2 bg-purple-600 hover:bg-purple-700">
+              <ArrowRight className="w-4 h-4" />
+              Avanzar a Eliminatorias
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Phase Content */}
       {phase === "draw" && drawState && (
         <VisualDraw
@@ -151,12 +174,13 @@ export const CompetitionView = ({
         />
       )}
 
-      {phase === "knockout" && (
-        <div className="text-center py-12">
-          <Crown className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-          <h3 className="text-xl font-semibold">Fase de Eliminatorias</h3>
-          <p className="text-muted-foreground">Próximamente...</p>
-        </div>
+      {phase === "knockout" && knockoutSeries && knockoutMatches && (
+        <KnockoutBracketView
+          series={knockoutSeries}
+          matches={knockoutMatches}
+          getTeamById={getTeamById}
+          config={config}
+        />
       )}
 
       {phase === "complete" && (

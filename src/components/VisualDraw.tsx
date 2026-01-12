@@ -241,7 +241,7 @@ export const VisualDraw = ({
                             getPotColor(pot.id)
                           )} 
                         />
-                        <span className="truncate">{team?.shortName || team?.name || teamId}</span>
+                        <span className="truncate text-xs">{team?.name || teamId}</span>
                         {isDrawn && <CheckCircle2 className="w-3 h-3 ml-auto text-green-500" />}
                       </div>
                     );
@@ -328,8 +328,8 @@ export const VisualDraw = ({
                                 drawnBall ? getPotColor(drawnBall.potId) : "bg-muted-foreground"
                               )} 
                             />
-                            <span className="text-sm font-medium truncate">
-                              {team.shortName || team.name}
+                            <span className="text-xs font-medium truncate">
+                              {team.name}
                             </span>
                           </>
                         ) : (

@@ -193,8 +193,8 @@ const GroupCard = ({
                   <TableCell className="font-bold text-center">
                     {standing.position}
                   </TableCell>
-                  <TableCell className="font-medium">
-                    {team?.shortName || team?.name || standing.teamId}
+                  <TableCell className="font-medium text-sm">
+                    {team?.name || standing.teamId}
                   </TableCell>
                   <TableCell className="text-center">{standing.played}</TableCell>
                   <TableCell className="text-center">
@@ -314,36 +314,36 @@ const GroupDetailView = ({
                 const awayTeam = getTeamById(match.awayTeamId);
                 
                 return (
-                  <div 
-                    key={match.id}
-                    className={cn(
-                      "flex items-center gap-2 py-2 px-3 rounded-lg",
-                      match.played ? "bg-muted/50" : "bg-muted/30 border border-dashed"
+                                  <div 
+                                    key={match.id}
+                                    className={cn(
+                                      "flex items-center gap-2 py-2 px-3 rounded-lg",
+                                      match.played ? "bg-muted/50" : "bg-muted/30 border border-dashed"
+                                    )}
+                                  >
+                                    <span className="flex-1 text-right text-xs font-medium truncate">
+                                      {homeTeam?.name}
+                                    </span>
+                                    
+                                    {match.played ? (
+                                      <span className="px-3 py-1 rounded bg-primary/10 font-bold text-sm min-w-[60px] text-center">
+                                        {match.homeGoals} - {match.awayGoals}
+                                      </span>
+                                    ) : (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => onPlayMatch(match.id, group.id)}
+                                        className="gap-1 h-7"
+                                      >
+                                        <Play className="w-3 h-3" />
+                                        Jugar
+                                      </Button>
                     )}
-                  >
-                    <span className="flex-1 text-right text-sm font-medium truncate">
-                      {homeTeam?.shortName || homeTeam?.name}
-                    </span>
                     
-                    {match.played ? (
-                      <span className="px-3 py-1 rounded bg-primary/10 font-bold text-sm min-w-[60px] text-center">
-                        {match.homeGoals} - {match.awayGoals}
-                      </span>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onPlayMatch(match.id, group.id)}
-                        className="gap-1 h-7"
-                      >
-                        <Play className="w-3 h-3" />
-                        Jugar
-                      </Button>
-                    )}
-                    
-                    <span className="flex-1 text-left text-sm font-medium truncate">
-                      {awayTeam?.shortName || awayTeam?.name}
-                    </span>
+                                    <span className="flex-1 text-left text-xs font-medium truncate">
+                                      {awayTeam?.name}
+                                    </span>
                   </div>
                 );
               })}
