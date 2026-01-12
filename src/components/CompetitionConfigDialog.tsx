@@ -481,10 +481,10 @@ export const CompetitionConfigDialog = ({
                 </div>
                 
                 {/* Teams list */}
-                <div className="flex-1 min-h-0 border rounded-lg">
+                <div className="flex-1 min-h-0 border rounded-lg flex flex-col overflow-hidden">
                   <Label className="text-sm p-3 block border-b">Configurar equipos (clic en nombre para editar)</Label>
-                  <ScrollArea className="h-[250px]">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pr-4">
+                  <ScrollArea className="flex-1 min-h-0">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pr-4 pb-4">
                       {customTeams.map((team) => (
                         <div
                           key={team.id}
@@ -497,7 +497,7 @@ export const CompetitionConfigDialog = ({
                               onChange={(e) => updateTeamName(team.id, e.target.value)}
                               onBlur={() => setEditingTeamId(null)}
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter') setEditingTeamId(null);
+                                if (e.key === "Enter") setEditingTeamId(null);
                               }}
                               className="flex-1 h-8"
                             />
@@ -514,10 +514,9 @@ export const CompetitionConfigDialog = ({
                             value={String(team.level)}
                             onValueChange={(v) => updateTeamLevel(team.id, parseInt(v) as 1 | 2 | 3 | 4)}
                           >
-                            <SelectTrigger className={cn(
-                              "w-20 h-7 text-xs",
-                              getLevelColor(team.level)
-                            )}>
+                            <SelectTrigger
+                              className={cn("w-20 h-7 text-xs", getLevelColor(team.level))}
+                            >
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -770,9 +769,9 @@ export const CompetitionConfigDialog = ({
                 </div>
                 
                 {/* Pots and unassigned teams in scrollable container */}
-                <div className="flex-1 min-h-0 border rounded-lg overflow-hidden">
-                  <ScrollArea className="h-[280px]">
-                    <div className="space-y-3 p-3">
+                <div className="flex-1 min-h-0 border rounded-lg overflow-hidden flex flex-col">
+                  <ScrollArea className="flex-1 min-h-0">
+                    <div className="space-y-3 p-3 pb-4">
                       {/* Pots */}
                       {pots.map((pot, potIndex) => {
                         const expectedCount = numGroups;
