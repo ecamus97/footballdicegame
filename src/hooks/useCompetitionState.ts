@@ -848,6 +848,310 @@ export const useCompetitionState = () => {
     } : null);
   }, [isGroupStageComplete, competitionState, getQualifiedTeamsFromGroups]);
 
+  // Simulate knockout match with level-based advantage rules
+  const simulateKnockoutMatch = useCallback((matchId: string): { 
+    team1Goals: number; 
+    team2Goals: number; 
+    firstRoll: { team1: number; team2: number };
+    secondRoll?: { team1: number; team2: number };
+    requiredSecondRoll: boolean;
+    penalties?: {
+      team1Penalties: number;
+      team2Penalties: number;
+      rounds: { team1: number; team2: number }[];
+    };
+    winnerId?: string;
+  } | null => {
+    if (!competitionState?.knockoutMatches || !competitionState?.knockoutSeries) return null;
+    
+    const match = competitionState.knockoutMatches.find(m => m.id === matchId);
+    if (!match || match.played || !match.team1Id || !match.team2Id) return null;
+    
+    const series = competitionState.knockoutSeries.find(s => s.leg1Id === matchId || s.leg2Id === matchId);
+    if (!series) return null;
+    
+    const team1 = getTeamById(match.team1Id);
+    const team2 = getTeamById(match.team2Id);
+    
+    if (!team1 || !team2) return null;
+    
+    const isNeutral = match.isNeutralVenue;
+    const isSecondLeg = series.leg2Id === matchId;
+    const isSingleLeg = !series.leg2Id;
+    
+    const team1Level = team1.level;
+    const team2Level = team2.level;
+    const levelDiff = Math.abs(team1Level - team2Level);
+    const strongerIsTeam1 = team1Level < team2Level;
+    
+    // First roll
+    const team1Roll1 = rollDie();
+    const team2Roll1 = rollDie();
+    const team1Goals1 = dieToGoals(team1Roll1);
+    const team2Goals1 = dieToGoals(team2Roll1);
+    
+    let requiredSecondRoll = false;
+    
+    // Level advantage rules
+    if (levelDiff === 0) {
+      requiredSecondRoll = false;
+    } else if (isNeutral) {
+      // Neutral venue: stronger team has advantage if not winning
+      const strongerWon = strongerIsTeam1 
+        ? team1Goals1 > team2Goals1 
+        : team2Goals1 > team1Goals1;
+      requiredSecondRoll = !strongerWon && levelDiff >= 1;
+    } else if (levelDiff === 1) {
+      // 1 level diff: only if stronger is home (team1) and doesn't win
+      if (strongerIsTeam1) {
+        requiredSecondRoll = team1Goals1 <= team2Goals1;
+      } else {
+        requiredSecondRoll = false;
+      }
+    } else {
+      // 2+ levels: stronger always has advantage
+      const strongerWon = strongerIsTeam1 
+        ? team1Goals1 > team2Goals1 
+        : team2Goals1 > team1Goals1;
+      requiredSecondRoll = !strongerWon;
+    }
+    
+    let finalTeam1Goals = team1Goals1;
+    let finalTeam2Goals = team2Goals1;
+    let secondRoll: { team1: number; team2: number } | undefined;
+    
+    if (requiredSecondRoll) {
+      const team1Roll2 = rollDie();
+      const team2Roll2 = rollDie();
+      secondRoll = { team1: team1Roll2, team2: team2Roll2 };
+      finalTeam1Goals = dieToGoals(team1Roll2);
+      finalTeam2Goals = dieToGoals(team2Roll2);
+    }
+    
+    // Check if we need penalties (for single leg or second leg with tied aggregate)
+    let penalties: { team1Penalties: number; team2Penalties: number; rounds: { team1: number; team2: number }[] } | undefined;
+    let winnerId: string | undefined;
+    
+    if (isSingleLeg || isSecondLeg) {
+      // Calculate aggregate
+      let team1Agg = finalTeam1Goals;
+      let team2Agg = finalTeam2Goals;
+      
+      if (isSecondLeg) {
+        team1Agg += series.team1Aggregate || 0;
+        team2Agg += series.team2Aggregate || 0;
+      }
+      
+      if (team1Agg === team2Agg) {
+        // Penalties needed
+        const penaltyRounds: { team1: number; team2: number }[] = [];
+        let team1Pens = 0;
+        let team2Pens = 0;
+        
+        // Initial 5 rounds
+        for (let i = 0; i < 5; i++) {
+          const t1 = Math.random() > 0.25 ? 1 : 0;
+          const t2 = Math.random() > 0.25 ? 1 : 0;
+          penaltyRounds.push({ team1: t1, team2: t2 });
+          team1Pens += t1;
+          team2Pens += t2;
+        }
+        
+        // Sudden death if still tied
+        while (team1Pens === team2Pens) {
+          const t1 = Math.random() > 0.25 ? 1 : 0;
+          const t2 = Math.random() > 0.25 ? 1 : 0;
+          penaltyRounds.push({ team1: t1, team2: t2 });
+          team1Pens += t1;
+          team2Pens += t2;
+        }
+        
+        penalties = { team1Penalties: team1Pens, team2Penalties: team2Pens, rounds: penaltyRounds };
+        winnerId = team1Pens > team2Pens 
+          ? (isSecondLeg ? series.team1Id! : match.team1Id!)
+          : (isSecondLeg ? series.team2Id! : match.team2Id!);
+      } else {
+        winnerId = team1Agg > team2Agg 
+          ? (isSecondLeg ? series.team1Id! : match.team1Id!)
+          : (isSecondLeg ? series.team2Id! : match.team2Id!);
+      }
+    }
+    
+    return {
+      team1Goals: finalTeam1Goals,
+      team2Goals: finalTeam2Goals,
+      firstRoll: { team1: team1Roll1, team2: team2Roll1 },
+      secondRoll,
+      requiredSecondRoll,
+      penalties,
+      winnerId,
+    };
+  }, [competitionState, getTeamById, rollDie, dieToGoals]);
+
+  // Confirm knockout match result
+  const confirmKnockoutMatchResult = useCallback((
+    matchId: string,
+    result: {
+      team1Goals: number;
+      team2Goals: number;
+      firstRoll: { team1: number; team2: number };
+      secondRoll?: { team1: number; team2: number };
+      requiredSecondRoll: boolean;
+      penalties?: { team1Penalties: number; team2Penalties: number; rounds: { team1: number; team2: number }[] };
+      winnerId?: string;
+    }
+  ) => {
+    if (!competitionState?.knockoutMatches || !competitionState?.knockoutSeries) return;
+    
+    setCompetitionState(prev => {
+      if (!prev?.knockoutMatches || !prev?.knockoutSeries) return prev;
+      
+      // Update the match
+      const updatedMatches = prev.knockoutMatches.map(m => {
+        if (m.id !== matchId) return m;
+        return {
+          ...m,
+          team1Goals: result.team1Goals,
+          team2Goals: result.team2Goals,
+          played: true,
+          penalties: result.penalties ? {
+            team1Penalties: result.penalties.team1Penalties,
+            team2Penalties: result.penalties.team2Penalties,
+          } : undefined,
+        };
+      });
+      
+      // Find and update series
+      const match = prev.knockoutMatches.find(m => m.id === matchId);
+      if (!match) return prev;
+      
+      const updatedSeries = prev.knockoutSeries.map(s => {
+        if (s.leg1Id !== matchId && s.leg2Id !== matchId) return s;
+        
+        const updated = { ...s };
+        const isSecondLeg = s.leg2Id === matchId;
+        const isSingleLeg = !s.leg2Id;
+        
+        // Update aggregates
+        if (isSingleLeg) {
+          updated.team1Aggregate = result.team1Goals;
+          updated.team2Aggregate = result.team2Goals;
+        } else if (!isSecondLeg) {
+          // First leg - just store the goals
+          updated.team1Aggregate = result.team2Goals; // away goals for series team1
+          updated.team2Aggregate = result.team1Goals; // home goals for series team2
+        } else {
+          // Second leg - add to existing
+          updated.team1Aggregate = (s.team1Aggregate || 0) + result.team1Goals;
+          updated.team2Aggregate = (s.team2Aggregate || 0) + result.team2Goals;
+        }
+        
+        // Set winner if determined
+        if (result.winnerId) {
+          updated.winnerId = result.winnerId;
+        } else if (isSingleLeg || isSecondLeg) {
+          if (updated.team1Aggregate > updated.team2Aggregate) {
+            updated.winnerId = s.team1Id;
+          } else if (updated.team2Aggregate > updated.team1Aggregate) {
+            updated.winnerId = s.team2Id;
+          }
+        }
+        
+        return updated;
+      });
+      
+      // If series has a winner, advance to next round
+      const completedSeries = updatedSeries.find(s => s.leg1Id === matchId || s.leg2Id === matchId);
+      if (completedSeries?.winnerId) {
+        // Find next round series and update teams
+        const currentRound = completedSeries.round;
+        const rounds: KnockoutRound[] = ["round_of_64", "round_of_32", "round_of_16", "quarterfinals", "semifinals", "final"];
+        const currentRoundIndex = rounds.indexOf(currentRound);
+        const nextRound = rounds[currentRoundIndex + 1];
+        
+        if (nextRound) {
+          const nextBracketPosition = Math.ceil(completedSeries.bracketPosition / 2);
+          const isFirstTeam = completedSeries.bracketPosition % 2 === 1;
+          
+          const nextSeriesIndex = updatedSeries.findIndex(
+            s => s.round === nextRound && s.bracketPosition === nextBracketPosition
+          );
+          
+          if (nextSeriesIndex !== -1) {
+            const nextSeries = { ...updatedSeries[nextSeriesIndex] };
+            if (isFirstTeam) {
+              nextSeries.team1Id = completedSeries.winnerId;
+            } else {
+              nextSeries.team2Id = completedSeries.winnerId;
+            }
+            updatedSeries[nextSeriesIndex] = nextSeries;
+            
+            // Also update matches for that series
+            updatedMatches.forEach((m, i) => {
+              if (m.round === nextRound && m.bracketPosition === nextBracketPosition) {
+                if (isFirstTeam) {
+                  updatedMatches[i] = { ...m, team1Id: completedSeries.winnerId };
+                } else {
+                  updatedMatches[i] = { ...m, team2Id: completedSeries.winnerId };
+                }
+              }
+            });
+          }
+        } else {
+          // This was the final - set champion
+          return {
+            ...prev,
+            knockoutMatches: updatedMatches,
+            knockoutSeries: updatedSeries,
+            phase: "complete" as const,
+            championId: completedSeries.winnerId,
+          };
+        }
+      }
+      
+      return {
+        ...prev,
+        knockoutMatches: updatedMatches,
+        knockoutSeries: updatedSeries,
+      };
+    });
+  }, [competitionState]);
+
+  // Go back to groups view (for navigation)
+  const goToPhase = useCallback((phase: "groups" | "knockout") => {
+    if (!competitionState) return;
+    setCompetitionState(prev => prev ? { ...prev, viewingPhase: phase } : null);
+  }, [competitionState]);
+
+  // Save competition state
+  const saveCompetition = useCallback((name: string): any => {
+    if (!competitionState) return null;
+    return {
+      competitionState,
+      customTeamsData,
+      teamLevels,
+      savedAt: new Date().toISOString(),
+    };
+  }, [competitionState, customTeamsData, teamLevels]);
+
+  // Load competition state
+  const loadCompetition = useCallback((data: any): boolean => {
+    try {
+      if (data.competitionState) {
+        setCompetitionState(data.competitionState);
+      }
+      if (data.customTeamsData) {
+        setCustomTeamsData(data.customTeamsData);
+      }
+      if (data.teamLevels) {
+        setTeamLevels(data.teamLevels);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   // Reset competition
   const resetCompetition = useCallback(() => {
     setCompetitionState(null);
@@ -865,6 +1169,11 @@ export const useCompetitionState = () => {
     isGroupStageComplete,
     getQualifiedTeamsFromGroups,
     advanceToKnockout,
+    simulateKnockoutMatch,
+    confirmKnockoutMatchResult,
+    goToPhase,
+    saveCompetition,
+    loadCompetition,
     resetCompetition,
     teamLevels,
     setTeamLevels,
