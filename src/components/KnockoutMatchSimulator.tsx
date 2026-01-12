@@ -5,6 +5,7 @@ import { Dice } from "./Dice";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Dices, CheckCircle2, RefreshCw, Shield, Home, Plane, Flag, Trophy } from "lucide-react";
 
@@ -73,12 +74,15 @@ export const KnockoutMatchSimulator = ({
   const isStrongerTeam1 = team1.level < team2.level;
 
   // Calculate aggregate if second leg
-  let team1AggBeforeMatch = 0;
-  let team2AggBeforeMatch = 0;
-  if (isSecondLeg && leg1Result) {
-    // In leg1, team1/team2 mapping may be different, so use series aggregate
-    team1AggBeforeMatch = series.team1Aggregate || 0;
-    team2AggBeforeMatch = series.team2Aggregate || 0;
+  // In second leg: match.team1 = series.team2, match.team2 = series.team1
+  // So we need to swap the aggregates for display
+  let matchTeam1PreviousGoals = 0;
+  let matchTeam2PreviousGoals = 0;
+  if (isSecondLeg) {
+    // match.team1 (home in vuelta) = series.team2, so show series.team2Aggregate
+    // match.team2 (away in vuelta) = series.team1, so show series.team1Aggregate
+    matchTeam1PreviousGoals = series.team2Aggregate || 0;
+    matchTeam2PreviousGoals = series.team1Aggregate || 0;
   }
 
   const handleRoll = async () => {
@@ -189,7 +193,7 @@ export const KnockoutMatchSimulator = ({
 
   return (
     <Dialog open={!!match} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl tracking-wide flex items-center gap-2">
             <Shield className="w-5 h-5" />
@@ -197,7 +201,8 @@ export const KnockoutMatchSimulator = ({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <ScrollArea className="flex-1 pr-4">
+        <div className="space-y-6 pb-4">
           {/* Teams Display */}
           <div className="flex items-center justify-between gap-4 p-4 bg-secondary/50 rounded-xl">
             <div className="flex-1 text-center">
@@ -223,7 +228,7 @@ export const KnockoutMatchSimulator = ({
               </span>
               {isSecondLeg && (
                 <div className="text-sm text-muted-foreground mt-1">
-                  Agg: {team1AggBeforeMatch}
+                  Ida: {matchTeam1PreviousGoals}
                 </div>
               )}
             </div>
@@ -247,7 +252,7 @@ export const KnockoutMatchSimulator = ({
               <span className="text-xs text-muted-foreground">Visita</span>
               {isSecondLeg && (
                 <div className="text-sm text-muted-foreground mt-1">
-                  Agg: {team2AggBeforeMatch}
+                  Ida: {matchTeam2PreviousGoals}
                 </div>
               )}
             </div>
@@ -427,6 +432,7 @@ export const KnockoutMatchSimulator = ({
             )}
           </div>
         </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
