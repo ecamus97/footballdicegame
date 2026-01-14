@@ -308,7 +308,7 @@ export const CompetitionConfigDialog = ({
           Nueva Competencia
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col">
+      <DialogContent className="max-w-3xl h-[90vh] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl flex items-center gap-2">
             <Trophy className="w-6 h-6" />

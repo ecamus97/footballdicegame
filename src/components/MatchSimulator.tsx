@@ -92,7 +92,7 @@ export const MatchSimulator = ({ match, getTeamById, onSimulate, onConfirm, onCl
 
   return (
     <Dialog open={!!match} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-y-auto">
+      <DialogContent className="max-w-2xl h-[90vh] max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl tracking-wide">Fecha {match.matchday}</DialogTitle>
         </DialogHeader>
