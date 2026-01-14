@@ -345,8 +345,9 @@ export const CompetitionConfigDialog = ({
           
           <div className="flex-1 mt-4 min-h-0 overflow-hidden">
             {/* Type Tab */}
-            <TabsContent value="type" className="m-0 h-full overflow-y-auto pr-4">
-              <div className="space-y-4">
+            <TabsContent value="type" className="m-0 h-full overflow-hidden">
+              <ScrollArea className="h-full pr-4">
+                <div className="space-y-4 pb-4">
                 <div className="space-y-2">
                   <Label>Nombre de la Competencia</Label>
                   <Input 
@@ -382,7 +383,8 @@ export const CompetitionConfigDialog = ({
                     ))}
                   </div>
                 </div>
-              </div>
+                </div>
+              </ScrollArea>
             </TabsContent>
             
             {/* Teams Tab */}
@@ -535,8 +537,9 @@ export const CompetitionConfigDialog = ({
             </TabsContent>
             
             {/* Phases Tab */}
-            <TabsContent value="phases" className="m-0 h-full overflow-y-auto pr-4">
-              <div className="space-y-6">
+            <TabsContent value="phases" className="m-0 h-full overflow-hidden">
+              <ScrollArea className="h-full pr-4">
+                <div className="space-y-6 pb-4">
                 {/* Qualifying Config */}
                 {needsQualifying && (
                   <div className="space-y-3 p-4 bg-orange-500/10 rounded-lg border border-orange-500/20">
@@ -719,7 +722,8 @@ export const CompetitionConfigDialog = ({
                     </div>
                   </div>
                 )}
-              </div>
+                </div>
+              </ScrollArea>
             </TabsContent>
             
             {/* Pots Tab */}
@@ -858,8 +862,9 @@ export const CompetitionConfigDialog = ({
             </TabsContent>
             
             {/* Summary Tab */}
-            <TabsContent value="summary" className="m-0 h-full overflow-y-auto pr-4">
-              <div className="space-y-4">
+            <TabsContent value="summary" className="m-0 h-full overflow-hidden">
+              <ScrollArea className="h-full pr-4">
+                <div className="space-y-4 pb-4">
                 <div className="p-4 bg-muted rounded-lg space-y-3">
                   <h3 className="font-display text-lg">{name}</h3>
                   <div className="grid grid-cols-2 gap-2 text-sm">
@@ -913,7 +918,8 @@ export const CompetitionConfigDialog = ({
                     {!validation.valid ? validation.message : !potValidation.valid ? potValidation.message : "Configuración válida"}
                   </span>
                 </div>
-              </div>
+                </div>
+              </ScrollArea>
             </TabsContent>
           </div>
         </Tabs>
