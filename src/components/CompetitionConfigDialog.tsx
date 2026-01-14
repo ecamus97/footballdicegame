@@ -343,52 +343,58 @@ export const CompetitionConfigDialog = ({
             </TabsTrigger>
           </TabsList>
           
-          <div className="flex-1 mt-4 min-h-0 overflow-hidden">
+          <div className="flex-1 mt-4 min-h-0 overflow-hidden flex flex-col">
             {/* Type Tab */}
-            <TabsContent value="type" className="m-0 h-full overflow-hidden">
-              <ScrollArea className="h-full pr-4">
+            <TabsContent value="type" className="m-0 flex-1 min-h-0 overflow-hidden flex flex-col">
+              <ScrollArea className="flex-1 min-h-0 pr-4">
                 <div className="space-y-4 pb-4">
-                <div className="space-y-2">
-                  <Label>Nombre de la Competencia</Label>
-                  <Input 
-                    value={name} 
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ej: Copa del Mundo 2026"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Tipo de Competencia</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {(["league", "league_playoffs", "knockout", "groups_knockout", "qualifying_groups_knockout"] as CompetitionType[]).map(type => (
-                      <button
-                        key={type}
-                        onClick={() => setCompetitionType(type)}
-                        className={cn(
-                          "p-4 rounded-lg border text-left transition-all",
-                          competitionType === type 
-                            ? "border-primary bg-primary/10" 
-                            : "border-border hover:border-primary/50"
-                        )}
-                      >
-                        <div className="font-medium">{getCompetitionTypeName(type)}</div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {type === "league" && "Todos contra todos"}
-                          {type === "league_playoffs" && "Liga + eliminatorias finales"}
-                          {type === "knockout" && "Eliminación directa desde el inicio"}
-                          {type === "groups_knockout" && "Fase de grupos + eliminatorias"}
-                          {type === "qualifying_groups_knockout" && "Clasificatoria + grupos + eliminatorias"}
-                        </div>
-                      </button>
-                    ))}
+                  <div className="space-y-2">
+                    <Label>Nombre de la Competencia</Label>
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Ej: Copa del Mundo 2026"
+                    />
                   </div>
-                </div>
+
+                  <div className="space-y-2">
+                    <Label>Tipo de Competencia</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {([
+                        "league",
+                        "league_playoffs",
+                        "knockout",
+                        "groups_knockout",
+                        "qualifying_groups_knockout",
+                      ] as CompetitionType[]).map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => setCompetitionType(type)}
+                          className={cn(
+                            "p-4 rounded-lg border text-left transition-all",
+                            competitionType === type
+                              ? "border-primary bg-primary/10"
+                              : "border-border hover:border-primary/50",
+                          )}
+                        >
+                          <div className="font-medium">{getCompetitionTypeName(type)}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {type === "league" && "Todos contra todos"}
+                            {type === "league_playoffs" && "Liga + eliminatorias finales"}
+                            {type === "knockout" && "Eliminación directa desde el inicio"}
+                            {type === "groups_knockout" && "Fase de grupos + eliminatorias"}
+                            {type === "qualifying_groups_knockout" && "Clasificatoria + grupos + eliminatorias"}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </ScrollArea>
             </TabsContent>
             
             {/* Teams Tab */}
-            <TabsContent value="teams" className="m-0 h-full overflow-hidden flex flex-col">
+            <TabsContent value="teams" className="m-0 flex-1 min-h-0 overflow-hidden flex flex-col">
               <div className="space-y-4 flex-1 flex flex-col min-h-0">
                 {/* Team count selector */}
                 <div className="flex items-center gap-4 flex-shrink-0">
@@ -537,197 +543,185 @@ export const CompetitionConfigDialog = ({
             </TabsContent>
             
             {/* Phases Tab */}
-            <TabsContent value="phases" className="m-0 h-full overflow-hidden">
-              <ScrollArea className="h-full pr-4">
+            <TabsContent value="phases" className="m-0 flex-1 min-h-0 overflow-hidden flex flex-col">
+              <ScrollArea className="flex-1 min-h-0 pr-4">
                 <div className="space-y-6 pb-4">
-                {/* Qualifying Config */}
-                {needsQualifying && (
-                  <div className="space-y-3 p-4 bg-orange-500/10 rounded-lg border border-orange-500/20">
-                    <Label className="text-base font-semibold">Fase Previa (Clasificatoria)</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Rondas previas</Label>
-                        <Select
-                          value={String(qualifyingRounds)}
-                          onValueChange={(v) => setQualifyingRounds(parseInt(v))}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[1, 2, 3].map(n => (
-                              <SelectItem key={n} value={String(n)}>{n} ronda{n > 1 ? 's' : ''}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Equipos en fase previa</Label>
-                        <Select
-                          value={String(qualifyingTeams)}
-                          onValueChange={(v) => setQualifyingTeams(parseInt(v))}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[4, 8, 12, 16, 24, 32].map(n => (
-                              <SelectItem key={n} value={String(n)}>{n} equipos</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Formato partidos</Label>
-                        <Select
-                          value={qualifyingFormat}
-                          onValueChange={(v) => setQualifyingFormat(v as MatchFormat)}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(["single", "double"] as MatchFormat[]).map(f => (
-                              <SelectItem key={f} value={f}>{getMatchFormatName(f)}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Directo a grupos</Label>
-                        <Select
-                          value={String(directToGroups)}
-                          onValueChange={(v) => setDirectToGroups(parseInt(v))}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[16, 24, 28, 32].map(n => (
-                              <SelectItem key={n} value={String(n)}>{n} equipos</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Groups Config */}
-                {needsGroups && (
-                  <div className="space-y-3 p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                    <Label className="text-base font-semibold">Fase de Grupos</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Formato partidos</Label>
-                        <Select
-                          value={groupMatchFormat}
-                          onValueChange={(v) => setGroupMatchFormat(v as MatchFormat)}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(["single", "double"] as MatchFormat[]).map(f => (
-                              <SelectItem key={f} value={f}>{getMatchFormatName(f)}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Clasificación</Label>
-                        <Select
-                          value={qualificationRule}
-                          onValueChange={(v) => setQualificationRule(v as QualificationRule)}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(["first_only", "first_second", "first_second_best_thirds"] as QualificationRule[]).map(r => (
-                              <SelectItem key={r} value={r}>{getQualificationRuleName(r)}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {qualificationRule === "first_second_best_thirds" && (
-                        <div className="space-y-1 col-span-2">
-                          <Label className="text-xs">Mejores terceros que clasifican</Label>
-                          <Select
-                            value={String(bestThirdsCount)}
-                            onValueChange={(v) => setBestThirdsCount(parseInt(v))}
-                          >
+                  {/* Qualifying Config */}
+                  {needsQualifying && (
+                    <div className="space-y-3 p-4 bg-orange-500/10 rounded-lg border border-orange-500/20">
+                      <Label className="text-base font-semibold">Fase Previa (Clasificatoria)</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Rondas previas</Label>
+                          <Select value={String(qualifyingRounds)} onValueChange={(v) => setQualifyingRounds(parseInt(v))}>
                             <SelectTrigger className="h-8">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {[4, 6, 8].map(n => (
-                                <SelectItem key={n} value={String(n)}>{n} mejores terceros</SelectItem>
+                              {[1, 2, 3].map((n) => (
+                                <SelectItem key={n} value={String(n)}>
+                                  {n} ronda{n > 1 ? "s" : ""}
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Knockout Config */}
-                {needsKnockout && (
-                  <div className="space-y-3 p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                    <Label className="text-base font-semibold">Eliminatorias</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Formato partidos</Label>
-                        <Select
-                          value={knockoutMatchFormat}
-                          onValueChange={(v) => setKnockoutMatchFormat(v as MatchFormat)}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(["single", "double", "neutral"] as MatchFormat[]).map(f => (
-                              <SelectItem key={f} value={f}>{getMatchFormatName(f)}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Equipos en fase previa</Label>
+                          <Select value={String(qualifyingTeams)} onValueChange={(v) => setQualifyingTeams(parseInt(v))}>
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[4, 8, 12, 16, 24, 32].map((n) => (
+                                <SelectItem key={n} value={String(n)}>
+                                  {n} equipos
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Formato partidos</Label>
+                          <Select value={qualifyingFormat} onValueChange={(v) => setQualifyingFormat(v as MatchFormat)}>
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(["single", "double"] as MatchFormat[]).map((f) => (
+                                <SelectItem key={f} value={f}>
+                                  {getMatchFormatName(f)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Directo a grupos</Label>
+                          <Select value={String(directToGroups)} onValueChange={(v) => setDirectToGroups(parseInt(v))}>
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[16, 24, 28, 32].map((n) => (
+                                <SelectItem key={n} value={String(n)}>
+                                  {n} equipos
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Formato final</Label>
-                        <Select
-                          value={finalFormat}
-                          onValueChange={(v) => setFinalFormat(v as MatchFormat)}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(["single", "double", "neutral"] as MatchFormat[]).map(f => (
-                              <SelectItem key={f} value={f}>{getMatchFormatName(f)}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    </div>
+                  )}
+
+                  {/* Groups Config */}
+                  {needsGroups && (
+                    <div className="space-y-3 p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                      <Label className="text-base font-semibold">Fase de Grupos</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Formato partidos</Label>
+                          <Select value={groupMatchFormat} onValueChange={(v) => setGroupMatchFormat(v as MatchFormat)}>
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(["single", "double"] as MatchFormat[]).map((f) => (
+                                <SelectItem key={f} value={f}>
+                                  {getMatchFormatName(f)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Clasificación</Label>
+                          <Select value={qualificationRule} onValueChange={(v) => setQualificationRule(v as QualificationRule)}>
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(["first_only", "first_second", "first_second_best_thirds"] as QualificationRule[]).map((r) => (
+                                <SelectItem key={r} value={r}>
+                                  {getQualificationRuleName(r)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {qualificationRule === "first_second_best_thirds" && (
+                          <div className="space-y-1 col-span-2">
+                            <Label className="text-xs">Mejores terceros que clasifican</Label>
+                            <Select value={String(bestThirdsCount)} onValueChange={(v) => setBestThirdsCount(parseInt(v))}>
+                              <SelectTrigger className="h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {[4, 6, 8].map((n) => (
+                                  <SelectItem key={n} value={String(n)}>
+                                    {n} mejores terceros
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center justify-between pt-2">
-                      <div>
-                        <Label className="text-sm">Cruces por posición</Label>
-                        <p className="text-xs text-muted-foreground">1° vs último de grupo opuesto</p>
+                  )}
+
+                  {/* Knockout Config */}
+                  {needsKnockout && (
+                    <div className="space-y-3 p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                      <Label className="text-base font-semibold">Eliminatorias</Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Formato partidos</Label>
+                          <Select value={knockoutMatchFormat} onValueChange={(v) => setKnockoutMatchFormat(v as MatchFormat)}>
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(["single", "double", "neutral"] as MatchFormat[]).map((f) => (
+                                <SelectItem key={f} value={f}>
+                                  {getMatchFormatName(f)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Formato final</Label>
+                          <Select value={finalFormat} onValueChange={(v) => setFinalFormat(v as MatchFormat)}>
+                            <SelectTrigger className="h-8">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(["single", "double", "neutral"] as MatchFormat[]).map((f) => (
+                                <SelectItem key={f} value={f}>
+                                  {getMatchFormatName(f)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
-                      <SwitchComponent
-                        checked={seedByPosition}
-                        onCheckedChange={setSeedByPosition}
-                      />
+                      <div className="flex items-center justify-between pt-2">
+                        <div>
+                          <Label className="text-sm">Cruces por posición</Label>
+                          <p className="text-xs text-muted-foreground">1° vs último de grupo opuesto</p>
+                        </div>
+                        <SwitchComponent checked={seedByPosition} onCheckedChange={setSeedByPosition} />
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
                 </div>
               </ScrollArea>
             </TabsContent>
             
             {/* Pots Tab */}
-            <TabsContent value="pots" className="m-0 h-full flex flex-col">
+            <TabsContent value="pots" className="m-0 flex-1 min-h-0 overflow-hidden flex flex-col">
               <div className="space-y-4 flex-1 flex flex-col min-h-0">
                 <div className="flex items-center justify-between">
                   <Label className="text-base">Configuración de Bombos</Label>
@@ -862,62 +856,68 @@ export const CompetitionConfigDialog = ({
             </TabsContent>
             
             {/* Summary Tab */}
-            <TabsContent value="summary" className="m-0 h-full overflow-hidden">
-              <ScrollArea className="h-full pr-4">
+            <TabsContent value="summary" className="m-0 flex-1 min-h-0 overflow-hidden flex flex-col">
+              <ScrollArea className="flex-1 min-h-0 pr-4">
                 <div className="space-y-4 pb-4">
-                <div className="p-4 bg-muted rounded-lg space-y-3">
-                  <h3 className="font-display text-lg">{name}</h3>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Tipo:</span>{" "}
-                      <span className="font-medium">{getCompetitionTypeName(competitionType)}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Equipos:</span>{" "}
-                      <span className="font-medium">{numTeams}</span>
-                    </div>
-                    {needsGroups && (
-                      <>
-                        <div>
-                          <span className="text-muted-foreground">Grupos:</span>{" "}
-                          <span className="font-medium">{numGroups} de 4</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Clasifican:</span>{" "}
-                          <span className="font-medium">{getQualificationRuleName(qualificationRule)}</span>
-                        </div>
-                      </>
-                    )}
-                    <div>
-                      <span className="text-muted-foreground">Eliminatorias:</span>{" "}
-                      <span className="font-medium">{getMatchFormatName(knockoutMatchFormat)}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Final:</span>{" "}
-                      <span className="font-medium">{getMatchFormatName(finalFormat)}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Sorteo:</span>{" "}
-                      <span className="font-medium">{drawMethod === "visual" ? "Visual" : "Automático"}</span>
+                  <div className="p-4 bg-muted rounded-lg space-y-3">
+                    <h3 className="font-display text-lg">{name}</h3>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Tipo:</span>{" "}
+                        <span className="font-medium">{getCompetitionTypeName(competitionType)}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Equipos:</span>{" "}
+                        <span className="font-medium">{numTeams}</span>
+                      </div>
+                      {needsGroups && (
+                        <>
+                          <div>
+                            <span className="text-muted-foreground">Grupos:</span>{" "}
+                            <span className="font-medium">{numGroups} de 4</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Clasifican:</span>{" "}
+                            <span className="font-medium">{getQualificationRuleName(qualificationRule)}</span>
+                          </div>
+                        </>
+                      )}
+                      <div>
+                        <span className="text-muted-foreground">Eliminatorias:</span>{" "}
+                        <span className="font-medium">{getMatchFormatName(knockoutMatchFormat)}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Final:</span>{" "}
+                        <span className="font-medium">{getMatchFormatName(finalFormat)}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Sorteo:</span>{" "}
+                        <span className="font-medium">{drawMethod === "visual" ? "Visual" : "Automático"}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                <div className={cn(
-                  "p-3 rounded-lg flex items-center gap-2",
-                  validation.valid && potValidation.valid
-                    ? "bg-green-500/10 border border-green-500/20 text-green-600"
-                    : "bg-destructive/10 border border-destructive/20 text-destructive"
-                )}>
-                  {validation.valid && potValidation.valid ? (
-                    <CheckCircle2 className="w-4 h-4" />
-                  ) : (
-                    <AlertCircle className="w-4 h-4" />
-                  )}
-                  <span className="text-sm font-medium">
-                    {!validation.valid ? validation.message : !potValidation.valid ? potValidation.message : "Configuración válida"}
-                  </span>
-                </div>
+
+                  <div
+                    className={cn(
+                      "p-3 rounded-lg flex items-center gap-2",
+                      validation.valid && potValidation.valid
+                        ? "bg-green-500/10 border border-green-500/20 text-green-600"
+                        : "bg-destructive/10 border border-destructive/20 text-destructive",
+                    )}
+                  >
+                    {validation.valid && potValidation.valid ? (
+                      <CheckCircle2 className="w-4 h-4" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4" />
+                    )}
+                    <span className="text-sm font-medium">
+                      {!validation.valid
+                        ? validation.message
+                        : !potValidation.valid
+                          ? potValidation.message
+                          : "Configuración válida"}
+                    </span>
+                  </div>
                 </div>
               </ScrollArea>
             </TabsContent>
