@@ -435,50 +435,6 @@ export const CompetitionConfigDialog = ({
                   </div>
                 )}
                 
-                {/* Import from Excel */}
-                <div className="flex-shrink-0">
-                  <Label className="text-sm mb-2 block">Importar desde Excel</Label>
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      
-                      try {
-                        const text = await file.text();
-                        const lines = text.split('\n').filter(l => l.trim());
-                        const newTeams = [...customTeams];
-                        
-                        lines.forEach((line, index) => {
-                          if (index >= teamCount) return;
-                          const parts = line.split(/[,;\t]/).map(p => p.trim().replace(/"/g, ''));
-                          const name = parts[0];
-                          const levelStr = parts[1];
-                          
-                          if (name && newTeams[index]) {
-                            newTeams[index] = {
-                              ...newTeams[index],
-                              name: name,
-                              shortName: name.slice(0, 3).toUpperCase(),
-                              level: levelStr ? (parseInt(levelStr) as 1 | 2 | 3 | 4) || newTeams[index].level : newTeams[index].level,
-                            };
-                          }
-                        });
-                        
-                        setCustomTeams(newTeams);
-                        toast({ title: "Equipos importados", description: `Se actualizaron ${Math.min(lines.length, teamCount)} equipos` });
-                      } catch (error) {
-                        toast({ title: "Error", description: "No se pudo leer el archivo", variant: "destructive" });
-                      }
-                      e.target.value = '';
-                    }}
-                    className="text-sm file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Formato CSV: Nombre,Nivel (1-4) - Una línea por equipo
-                  </p>
-                </div>
                 
                 {/* Teams list */}
                 <div className="flex-1 min-h-0 border rounded-lg overflow-hidden flex flex-col">
