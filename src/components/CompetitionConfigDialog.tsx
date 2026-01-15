@@ -345,52 +345,54 @@ export const CompetitionConfigDialog = ({
           
           <div className="flex-1 mt-4 min-h-0 overflow-hidden flex flex-col">
             {/* Type Tab */}
-            <TabsContent value="type" className="m-0 flex-1 min-h-0 overflow-hidden flex flex-col">
-              <ScrollArea className="flex-1 min-h-0 pr-4">
-                <div className="space-y-4 pb-4">
-                  <div className="space-y-2">
-                    <Label>Nombre de la Competencia</Label>
-                    <Input
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Ej: Copa del Mundo 2026"
-                    />
-                  </div>
+            <TabsContent
+              value="type"
+              className="m-0 flex-1 min-h-0 overflow-y-auto pr-4"
+            >
+              <div className="space-y-4 pb-4">
+                <div className="space-y-2">
+                  <Label>Nombre de la Competencia</Label>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ej: Copa del Mundo 2026"
+                  />
+                </div>
 
-                  <div className="space-y-2">
-                    <Label>Tipo de Competencia</Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {([
-                        "league",
-                        "league_playoffs",
-                        "knockout",
-                        "groups_knockout",
-                        "qualifying_groups_knockout",
-                      ] as CompetitionType[]).map((type) => (
-                        <button
-                          key={type}
-                          onClick={() => setCompetitionType(type)}
-                          className={cn(
-                            "p-4 rounded-lg border text-left transition-all",
-                            competitionType === type
-                              ? "border-primary bg-primary/10"
-                              : "border-border hover:border-primary/50",
-                          )}
-                        >
-                          <div className="font-medium">{getCompetitionTypeName(type)}</div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {type === "league" && "Todos contra todos"}
-                            {type === "league_playoffs" && "Liga + eliminatorias finales"}
-                            {type === "knockout" && "Eliminación directa desde el inicio"}
-                            {type === "groups_knockout" && "Fase de grupos + eliminatorias"}
-                            {type === "qualifying_groups_knockout" && "Clasificatoria + grupos + eliminatorias"}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+                <div className="space-y-2">
+                  <Label>Tipo de Competencia</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {([
+                      "league",
+                      "league_playoffs",
+                      "knockout",
+                      "groups_knockout",
+                      "qualifying_groups_knockout",
+                    ] as CompetitionType[]).map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => setCompetitionType(type)}
+                        className={cn(
+                          "p-4 rounded-lg border text-left transition-all",
+                          competitionType === type
+                            ? "border-primary bg-primary/10"
+                            : "border-border hover:border-primary/50",
+                        )}
+                      >
+                        <div className="font-medium">{getCompetitionTypeName(type)}</div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {type === "league" && "Todos contra todos"}
+                          {type === "league_playoffs" && "Liga + eliminatorias finales"}
+                          {type === "knockout" && "Eliminación directa desde el inicio"}
+                          {type === "groups_knockout" && "Fase de grupos + eliminatorias"}
+                          {type === "qualifying_groups_knockout" &&
+                            "Clasificatoria + grupos + eliminatorias"}
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 </div>
-              </ScrollArea>
+              </div>
             </TabsContent>
             
             {/* Teams Tab */}
