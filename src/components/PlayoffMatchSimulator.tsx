@@ -4,7 +4,6 @@ import { Dice } from "./Dice";
 import { TeamBadge } from "./TeamBadge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Dices, CheckCircle2, RefreshCw, Target, Crown } from "lucide-react";
 
@@ -289,7 +288,7 @@ export const PlayoffMatchSimulator = ({
 
   return (
     <Dialog open={!!match} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-2xl h-[90vh] max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl tracking-wide flex items-center gap-2">
             <Crown className="w-6 h-6 text-purple-500" />
@@ -297,8 +296,9 @@ export const PlayoffMatchSimulator = ({
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 min-h-0 pr-4">
-          <div className="space-y-6 pb-4">
+        <div className="space-y-6">
+          {/* Teams Display */}
+          <div className="flex items-center justify-between gap-8 p-4 bg-purple-500/10 rounded-xl border border-purple-500/20">
             <div className="flex-1">
               <TeamBadge team={team1} size="lg" align="left" />
               <span className="text-xs text-muted-foreground mt-1 block">
@@ -578,7 +578,7 @@ export const PlayoffMatchSimulator = ({
               </Button>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

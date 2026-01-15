@@ -193,7 +193,7 @@ export const KnockoutMatchSimulator = ({
 
   return (
     <Dialog open={!!match} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-2xl h-[90vh] max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl tracking-wide flex items-center gap-2">
             <Shield className="w-5 h-5" />
@@ -201,8 +201,8 @@ export const KnockoutMatchSimulator = ({
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 min-h-0 pr-4">
-        <div className="space-y-6 pb-6">
+        <ScrollArea className="flex-1 pr-4">
+        <div className="space-y-6 pb-4">
           {/* Teams Display */}
           <div className="flex items-center justify-between gap-4 p-4 bg-secondary/50 rounded-xl">
             <div className="flex-1 text-center">
