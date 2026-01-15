@@ -343,7 +343,7 @@ export const CompetitionConfigDialog = ({
             </TabsTrigger>
           </TabsList>
           
-          <div className="flex-1 mt-4 overflow-hidden">
+          <div className="flex-1 mt-4 overflow-hidden min-h-0">
             {/* Type Tab */}
             <TabsContent value="type" className="m-0 h-full overflow-y-auto pr-4">
               <div className="space-y-4">
@@ -434,57 +434,11 @@ export const CompetitionConfigDialog = ({
                     <strong>{byesNeeded}</strong> equipos pasarán directamente a la siguiente ronda (byes)
                   </div>
                 )}
-                
-                {/* Import from Excel */}
-                <div className="flex-shrink-0">
-                  <Label className="text-sm mb-2 block">Importar desde Excel</Label>
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      
-                      try {
-                        const text = await file.text();
-                        const lines = text.split('\n').filter(l => l.trim());
-                        const newTeams = [...customTeams];
-                        
-                        lines.forEach((line, index) => {
-                          if (index >= teamCount) return;
-                          const parts = line.split(/[,;\t]/).map(p => p.trim().replace(/"/g, ''));
-                          const name = parts[0];
-                          const levelStr = parts[1];
-                          
-                          if (name && newTeams[index]) {
-                            newTeams[index] = {
-                              ...newTeams[index],
-                              name: name,
-                              shortName: name.slice(0, 3).toUpperCase(),
-                              level: levelStr ? (parseInt(levelStr) as 1 | 2 | 3 | 4) || newTeams[index].level : newTeams[index].level,
-                            };
-                          }
-                        });
-                        
-                        setCustomTeams(newTeams);
-                        toast({ title: "Equipos importados", description: `Se actualizaron ${Math.min(lines.length, teamCount)} equipos` });
-                      } catch (error) {
-                        toast({ title: "Error", description: "No se pudo leer el archivo", variant: "destructive" });
-                      }
-                      e.target.value = '';
-                    }}
-                    className="text-sm file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Formato CSV: Nombre,Nivel (1-4) - Una línea por equipo
-                  </p>
-                </div>
-                
                 {/* Teams list */}
                 <div className="flex-1 min-h-0 border rounded-lg overflow-hidden flex flex-col">
                   <Label className="text-sm p-3 block border-b bg-background flex-shrink-0">Configurar equipos (clic en nombre para editar)</Label>
                   <ScrollArea className="flex-1 min-h-0">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 pr-4 pb-8">
                       {customTeams.map((team) => (
                         <div
                           key={team.id}
@@ -771,9 +725,9 @@ export const CompetitionConfigDialog = ({
                 </div>
                 
                 {/* Pots and unassigned teams in scrollable container */}
-                <div className="flex-1 min-h-0 border rounded-lg overflow-hidden">
-                  <ScrollArea className="h-[320px]">
-                    <div className="space-y-3 p-3 pb-6">
+                <div className="flex-1 min-h-0 border rounded-lg overflow-hidden flex flex-col">
+                  <ScrollArea className="flex-1 min-h-0">
+                    <div className="space-y-3 p-3 pr-4 pb-10">
                       {/* Pots */}
                       {pots.map((pot, potIndex) => {
                         const expectedCount = numGroups;
