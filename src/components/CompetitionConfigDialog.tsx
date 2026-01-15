@@ -481,10 +481,10 @@ export const CompetitionConfigDialog = ({
                 </div>
                 
                 {/* Teams list */}
-                <div className="flex-1 min-h-0 border rounded-lg">
-                  <Label className="text-sm p-3 block border-b">Configurar equipos (clic en nombre para editar)</Label>
-                  <ScrollArea className="h-[250px]">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pr-4">
+                <div className="flex-1 min-h-0 border rounded-lg overflow-hidden">
+                  <Label className="text-sm p-3 block border-b bg-background">Configurar equipos (clic en nombre para editar)</Label>
+                  <ScrollArea className="h-[300px]">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3">
                       {customTeams.map((team) => (
                         <div
                           key={team.id}
@@ -530,6 +530,7 @@ export const CompetitionConfigDialog = ({
                         </div>
                       ))}
                     </div>
+                    <div className="h-4" /> {/* Bottom padding for scroll */}
                   </ScrollArea>
                 </div>
               </div>
@@ -771,8 +772,8 @@ export const CompetitionConfigDialog = ({
                 
                 {/* Pots and unassigned teams in scrollable container */}
                 <div className="flex-1 min-h-0 border rounded-lg overflow-hidden">
-                  <ScrollArea className="h-[280px]">
-                    <div className="space-y-3 p-3">
+                  <ScrollArea className="h-[320px]">
+                    <div className="space-y-3 p-3 pb-6">
                       {/* Pots */}
                       {pots.map((pot, potIndex) => {
                         const expectedCount = numGroups;
