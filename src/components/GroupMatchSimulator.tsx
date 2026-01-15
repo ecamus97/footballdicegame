@@ -148,8 +148,8 @@ export const GroupMatchSimulator = ({
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 min-h-0">
-        <div className="space-y-6 pr-4 pb-6">
+        <ScrollArea className="flex-1 pr-4">
+        <div className="space-y-6 pb-4">
           {/* Teams Display */}
           <div className="flex items-center justify-between gap-4 p-4 bg-secondary/50 rounded-xl">
             <div className="flex-1 text-center">
@@ -309,32 +309,32 @@ export const GroupMatchSimulator = ({
           <div className="text-center text-sm text-muted-foreground">
             {getPhaseMessage()}
           </div>
+
+          {/* Actions */}
+          <div className="flex justify-center gap-3">
+            {phase === "ready" && (
+              <Button onClick={handleRoll} size="lg" className="gap-2 pulse-gold">
+                <Dices className="w-5 h-5" />
+                Lanzar Dados
+              </Button>
+            )}
+            
+            {phase === "checking" && (
+              <Button onClick={handleRoll} size="lg" variant="outline" className="gap-2 border-gold text-gold-dark hover:bg-gold/10">
+                <RefreshCw className="w-5 h-5" />
+                Segundo Lanzamiento
+              </Button>
+            )}
+            
+            {phase === "final" && (
+              <Button onClick={handleConfirm} size="lg" className="gap-2">
+                <CheckCircle2 className="w-5 h-5" />
+                Confirmar Resultado
+              </Button>
+            )}
+          </div>
         </div>
         </ScrollArea>
-
-        {/* Actions (fixed footer) */}
-        <div className="flex justify-center gap-3 pt-4 border-t bg-background flex-shrink-0">
-          {phase === "ready" && (
-            <Button onClick={handleRoll} size="lg" className="gap-2 pulse-gold">
-              <Dices className="w-5 h-5" />
-              Lanzar Dados
-            </Button>
-          )}
-
-          {phase === "checking" && (
-            <Button onClick={handleRoll} size="lg" variant="outline" className="gap-2 border-gold text-gold-dark hover:bg-gold/10">
-              <RefreshCw className="w-5 h-5" />
-              Segundo Lanzamiento
-            </Button>
-          )}
-
-          {phase === "final" && (
-            <Button onClick={handleConfirm} size="lg" className="gap-2">
-              <CheckCircle2 className="w-5 h-5" />
-              Confirmar Resultado
-            </Button>
-          )}
-        </div>
       </DialogContent>
     </Dialog>
   );
