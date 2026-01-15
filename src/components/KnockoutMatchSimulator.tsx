@@ -3,11 +3,11 @@ import { Team } from "@/types/game";
 import { KnockoutMatch, KnockoutSeries, MatchFormat } from "@/types/competition";
 import { Dice } from "./Dice";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { Dices, CheckCircle2, RefreshCw, Shield, Home, Plane, Flag, Trophy } from "lucide-react";
+import { Dices, CheckCircle2, RefreshCw, Shield, Home, Plane, Flag, Trophy, Target } from "lucide-react";
 
 interface KnockoutMatchSimulatorProps {
   match: KnockoutMatch | null;
@@ -36,7 +36,7 @@ export interface KnockoutMatchResult {
   winnerId?: string;
 }
 
-type SimulationPhase = "ready" | "first-roll" | "checking" | "second-roll" | "penalties" | "final";
+type SimulationPhase = "ready" | "first-roll" | "checking" | "second-roll" | "match-result" | "penalties" | "penalty-roll" | "final";
 
 export const KnockoutMatchSimulator = ({ 
   match, 
@@ -53,11 +53,15 @@ export const KnockoutMatchSimulator = ({
   const [phase, setPhase] = useState<SimulationPhase>("ready");
   const [result, setResult] = useState<KnockoutMatchResult | null>(null);
   const [rolling, setRolling] = useState(false);
+  const [penaltyRounds, setPenaltyRounds] = useState<{ team1: number; team2: number }[]>([]);
+  const [currentPenaltyRoll, setCurrentPenaltyRoll] = useState<{ team1: number | null; team2: number | null }>({ team1: null, team2: null });
 
   useEffect(() => {
     if (match) {
       setPhase("ready");
       setResult(null);
+      setPenaltyRounds([]);
+      setCurrentPenaltyRoll({ team1: null, team2: null });
     }
   }, [match]);
 
@@ -74,16 +78,47 @@ export const KnockoutMatchSimulator = ({
   const isStrongerTeam1 = team1.level < team2.level;
 
   // Calculate aggregate if second leg
-  // In second leg: match.team1 = series.team2, match.team2 = series.team1
-  // So we need to swap the aggregates for display
   let matchTeam1PreviousGoals = 0;
   let matchTeam2PreviousGoals = 0;
   if (isSecondLeg) {
-    // match.team1 (home in vuelta) = series.team2, so show series.team2Aggregate
-    // match.team2 (away in vuelta) = series.team1, so show series.team1Aggregate
     matchTeam1PreviousGoals = series.team2Aggregate || 0;
     matchTeam2PreviousGoals = series.team1Aggregate || 0;
   }
+
+  const rollDie = (): number => Math.floor(Math.random() * 6) + 1;
+  const dieToGoals = (die: number): number => die - 1;
+
+  const needsSecondRoll = (team1Goals: number, team2Goals: number): boolean => {
+    if (levelDiff === 0) return false;
+    
+    const strongerWins = isStrongerTeam1 
+      ? team1Goals > team2Goals 
+      : team2Goals > team1Goals;
+    
+    if (isNeutral) {
+      return !strongerWins;
+    }
+    
+    if (levelDiff === 1) {
+      if (!isStrongerTeam1) return false;
+      return !strongerWins;
+    }
+    
+    return !strongerWins;
+  };
+
+  const checkNeedsPenalties = (team1Goals: number, team2Goals: number): boolean => {
+    const isSingleMatch = matchFormat === "single" || matchFormat === "neutral";
+    
+    if (isSingleMatch) {
+      return team1Goals === team2Goals;
+    } else if (isSecondLeg) {
+      const team1Aggregate = matchTeam1PreviousGoals + team1Goals;
+      const team2Aggregate = matchTeam2PreviousGoals + team2Goals;
+      return team1Aggregate === team2Aggregate;
+    }
+    return false;
+  };
 
   const handleRoll = async () => {
     if (phase === "ready") {
@@ -92,16 +127,31 @@ export const KnockoutMatchSimulator = ({
       
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      const simResult = onSimulate(match.id);
-      if (simResult) {
-        setResult(simResult);
-        setRolling(false);
-        
-        if (simResult.requiredSecondRoll) {
-          setPhase("checking");
-        } else if (simResult.penalties) {
-          setPhase("penalties");
+      const firstTeam1Roll = rollDie();
+      const firstTeam2Roll = rollDie();
+      const firstTeam1Goals = dieToGoals(firstTeam1Roll);
+      const firstTeam2Goals = dieToGoals(firstTeam2Roll);
+      
+      const requiresSecond = needsSecondRoll(firstTeam1Goals, firstTeam2Goals);
+      
+      const newResult: KnockoutMatchResult = {
+        team1Goals: firstTeam1Goals,
+        team2Goals: firstTeam2Goals,
+        firstRoll: { team1: firstTeam1Roll, team2: firstTeam2Roll },
+        requiredSecondRoll: requiresSecond,
+      };
+      
+      setResult(newResult);
+      setRolling(false);
+      
+      if (requiresSecond) {
+        setPhase("checking");
+      } else {
+        if (checkNeedsPenalties(firstTeam1Goals, firstTeam2Goals)) {
+          setPhase("match-result");
         } else {
+          // Determine winner for single matches
+          determineWinner(newResult);
           setPhase("final");
         }
       }
@@ -110,13 +160,96 @@ export const KnockoutMatchSimulator = ({
       setPhase("second-roll");
       
       await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const secondTeam1Roll = rollDie();
+      const secondTeam2Roll = rollDie();
+      const finalTeam1Goals = dieToGoals(secondTeam1Roll);
+      const finalTeam2Goals = dieToGoals(secondTeam2Roll);
+      
+      const newResult: KnockoutMatchResult = {
+        ...result!,
+        team1Goals: finalTeam1Goals,
+        team2Goals: finalTeam2Goals,
+        secondRoll: { team1: secondTeam1Roll, team2: secondTeam2Roll },
+      };
+      
+      setResult(newResult);
       setRolling(false);
       
-      if (result?.penalties) {
-        setPhase("penalties");
+      if (checkNeedsPenalties(finalTeam1Goals, finalTeam2Goals)) {
+        setPhase("match-result");
       } else {
+        determineWinner(newResult);
         setPhase("final");
       }
+    }
+  };
+
+  const determineWinner = (matchResult: KnockoutMatchResult) => {
+    const isSingleMatch = matchFormat === "single" || matchFormat === "neutral";
+    
+    if (isSingleMatch) {
+      if (matchResult.team1Goals > matchResult.team2Goals) {
+        matchResult.winnerId = match.team1Id!;
+      } else if (matchResult.team2Goals > matchResult.team1Goals) {
+        matchResult.winnerId = match.team2Id!;
+      }
+    } else if (isSecondLeg) {
+      const team1Aggregate = matchTeam1PreviousGoals + matchResult.team1Goals;
+      const team2Aggregate = matchTeam2PreviousGoals + matchResult.team2Goals;
+      
+      if (team1Aggregate > team2Aggregate) {
+        matchResult.winnerId = match.team1Id!;
+      } else if (team2Aggregate > team1Aggregate) {
+        matchResult.winnerId = match.team2Id!;
+      }
+    }
+    
+    setResult({ ...matchResult });
+  };
+
+  const handleStartPenalties = () => {
+    setPhase("penalties");
+  };
+
+  const handlePenaltyRoll = async () => {
+    setRolling(true);
+    setPhase("penalty-roll");
+    
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    const team1Die = rollDie();
+    const team2Die = rollDie();
+    const team1Pen = dieToGoals(team1Die);
+    const team2Pen = dieToGoals(team2Die);
+    
+    setCurrentPenaltyRoll({ team1: team1Die, team2: team2Die });
+    setRolling(false);
+    
+    if (team1Pen !== team2Pen) {
+      const newRounds = [...penaltyRounds, { team1: team1Die, team2: team2Die }];
+      setPenaltyRounds(newRounds);
+      
+      const team1Total = newRounds.reduce((sum, r) => sum + dieToGoals(r.team1), 0);
+      const team2Total = newRounds.reduce((sum, r) => sum + dieToGoals(r.team2), 0);
+      
+      const winnerId = team1Pen > team2Pen ? match.team1Id : match.team2Id;
+      
+      setResult(prev => ({
+        ...prev!,
+        penalties: {
+          team1Penalties: team1Total,
+          team2Penalties: team2Total,
+          rounds: newRounds,
+        },
+        winnerId: winnerId!,
+      }));
+      
+      setPhase("final");
+    } else {
+      setPenaltyRounds(prev => [...prev, { team1: team1Die, team2: team2Die }]);
+      setCurrentPenaltyRoll({ team1: null, team2: null });
+      setPhase("penalties");
     }
   };
 
@@ -139,8 +272,14 @@ export const KnockoutMatchSimulator = ({
           : "Evaluando resultado...";
       case "second-roll":
         return "Segundo lanzamiento...";
+      case "match-result":
+        return "¡Empate en el global! Se van a penales";
       case "penalties":
-        return "¡Definición por penales!";
+        return penaltyRounds.length > 0 
+          ? `¡Empate en penales! Ronda ${penaltyRounds.length + 1}`
+          : "Tanda de penales - Lanza los dados";
+      case "penalty-roll":
+        return "Lanzando penales...";
       case "final":
         return "¡Partido finalizado!";
     }
@@ -182,13 +321,20 @@ export const KnockoutMatchSimulator = ({
 
   const advantageInfo = getLevelAdvantageInfo();
   const showFirstRoll = phase !== "ready" && result;
-  const showSecondRoll = (phase === "second-roll" || phase === "penalties" || phase === "final") && result?.secondRoll;
+  const showSecondRoll = (phase === "second-roll" || phase === "match-result" || phase === "penalties" || phase === "penalty-roll" || phase === "final") && result?.secondRoll;
+  const showPenalties = ["penalties", "penalty-roll", "final"].includes(phase) && (penaltyRounds.length > 0 || currentPenaltyRoll.team1 !== null);
 
-  // Determine winner display
   const getWinnerDisplay = () => {
     if (!result?.winnerId) return null;
     const winner = getTeamById(result.winnerId);
     return winner?.name || "Por definir";
+  };
+
+  // Calculate total penalties for display
+  const getTotalPenalties = () => {
+    const team1Total = penaltyRounds.reduce((sum, r) => sum + dieToGoals(r.team1), 0);
+    const team2Total = penaltyRounds.reduce((sum, r) => sum + dieToGoals(r.team2), 0);
+    return { team1: team1Total, team2: team2Total };
   };
 
   return (
@@ -354,28 +500,74 @@ export const KnockoutMatchSimulator = ({
               </div>
             )}
 
-            {/* Penalties Display */}
-            {(phase === "penalties" || phase === "final") && result?.penalties && (
+            {/* Penalties Section */}
+            {showPenalties && (
               <div className="p-6 bg-purple-500/10 rounded-xl border-2 border-purple-500/30 animate-slide-up">
                 <div className="text-sm font-medium text-center mb-4 text-purple-600 flex items-center justify-center gap-2">
-                  <Trophy className="w-4 h-4" />
-                  Tanda de Penales
+                  <Target className="w-4 h-4" />
+                  Tanda de Penales {penaltyRounds.length > 0 && `- Ronda ${penaltyRounds.length}`}
                 </div>
+                
+                {/* Previous penalty rounds */}
+                {penaltyRounds.length > 0 && (
+                  <div className="space-y-2 mb-4">
+                    {penaltyRounds.map((round, idx) => (
+                      <div key={idx} className="flex items-center justify-center gap-4 text-sm">
+                        <span className="text-muted-foreground w-20 text-right">Ronda {idx + 1}:</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono">{team1.name}: {dieToGoals(round.team1)}</span>
+                          <span className="text-muted-foreground">-</span>
+                          <span className="font-mono">{team2.name}: {dieToGoals(round.team2)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Current penalty roll */}
                 <div className="flex items-center justify-center gap-8">
-                  <div className="text-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <Dice 
+                      value={currentPenaltyRoll.team1} 
+                      rolling={rolling && phase === "penalty-roll"}
+                      size="lg"
+                      variant="home"
+                    />
                     <span className="text-sm font-medium">{team1.name}</span>
-                    <div className="font-display text-4xl text-purple-600">
-                      {result.penalties.team1Penalties}
-                    </div>
+                    {currentPenaltyRoll.team1 && (
+                      <span className="font-display text-2xl text-purple-600">
+                        {dieToGoals(currentPenaltyRoll.team1)} penales
+                      </span>
+                    )}
                   </div>
+                  
                   <div className="text-2xl text-muted-foreground">-</div>
-                  <div className="text-center">
+                  
+                  <div className="flex flex-col items-center gap-2">
+                    <Dice 
+                      value={currentPenaltyRoll.team2} 
+                      rolling={rolling && phase === "penalty-roll"}
+                      size="lg"
+                      variant="away"
+                    />
                     <span className="text-sm font-medium">{team2.name}</span>
-                    <div className="font-display text-4xl text-purple-600">
-                      {result.penalties.team2Penalties}
-                    </div>
+                    {currentPenaltyRoll.team2 && (
+                      <span className="font-display text-2xl text-purple-600">
+                        {dieToGoals(currentPenaltyRoll.team2)} penales
+                      </span>
+                    )}
                   </div>
                 </div>
+                
+                {/* Total penalties */}
+                {penaltyRounds.length > 0 && (
+                  <div className="mt-4 text-center">
+                    <span className="text-sm text-muted-foreground">Total: </span>
+                    <span className="font-display text-lg text-purple-600">
+                      {getTotalPenalties().team1} - {getTotalPenalties().team2}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -389,6 +581,11 @@ export const KnockoutMatchSimulator = ({
                 <span className="text-2xl opacity-50">-</span>
                 <span className="font-display text-5xl">{result.team2Goals}</span>
               </div>
+              {result.penalties && (
+                <div className="mt-2 text-sm opacity-80">
+                  Penales: {result.penalties.team1Penalties} - {result.penalties.team2Penalties}
+                </div>
+              )}
               {result.winnerId && (
                 <div className="mt-2 text-sm opacity-80 flex items-center justify-center gap-2">
                   <Trophy className="w-4 h-4" />
@@ -407,32 +604,46 @@ export const KnockoutMatchSimulator = ({
           <div className="text-center text-sm text-muted-foreground">
             {getPhaseMessage()}
           </div>
-
-          {/* Actions */}
-          <div className="flex justify-center gap-3">
-            {phase === "ready" && (
-              <Button onClick={handleRoll} size="lg" className="gap-2 pulse-gold">
-                <Dices className="w-5 h-5" />
-                Lanzar Dados
-              </Button>
-            )}
-            
-            {phase === "checking" && (
-              <Button onClick={handleRoll} size="lg" variant="outline" className="gap-2 border-gold text-gold-dark hover:bg-gold/10">
-                <RefreshCw className="w-5 h-5" />
-                Segundo Lanzamiento
-              </Button>
-            )}
-            
-            {phase === "final" && (
-              <Button onClick={handleConfirm} size="lg" className="gap-2">
-                <CheckCircle2 className="w-5 h-5" />
-                Confirmar Resultado
-              </Button>
-            )}
-          </div>
         </div>
         </ScrollArea>
+
+        {/* Fixed Footer with Actions */}
+        <DialogFooter className="flex justify-center gap-3 pt-4 border-t">
+          {phase === "ready" && (
+            <Button onClick={handleRoll} size="lg" className="gap-2 pulse-gold">
+              <Dices className="w-5 h-5" />
+              Lanzar Dados
+            </Button>
+          )}
+          
+          {phase === "checking" && (
+            <Button onClick={handleRoll} size="lg" variant="outline" className="gap-2 border-gold text-gold-dark hover:bg-gold/10">
+              <RefreshCw className="w-5 h-5" />
+              Segundo Lanzamiento
+            </Button>
+          )}
+          
+          {phase === "match-result" && (
+            <Button onClick={handleStartPenalties} size="lg" className="gap-2 bg-purple-600 hover:bg-purple-700">
+              <Target className="w-5 h-5" />
+              Ir a Penales
+            </Button>
+          )}
+          
+          {phase === "penalties" && (
+            <Button onClick={handlePenaltyRoll} size="lg" className="gap-2 bg-purple-600 hover:bg-purple-700">
+              <Dices className="w-5 h-5" />
+              Lanzar Penales
+            </Button>
+          )}
+          
+          {phase === "final" && (
+            <Button onClick={handleConfirm} size="lg" className="gap-2">
+              <CheckCircle2 className="w-5 h-5" />
+              Confirmar Resultado
+            </Button>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
