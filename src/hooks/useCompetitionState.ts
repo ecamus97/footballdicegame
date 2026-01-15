@@ -58,9 +58,12 @@ const generateGroupMatches = (
   });
   
   // Add return matches for double format
+  // Swap matchday 2 with matchday 5 so teams alternate home/away
   if (format === "double") {
     const firstLegMatches = [...matches];
     firstLegMatches.forEach(match => {
+      // Return matches: matchday 1->4, 2->5, 3->6
+      // But we want to swap 2 and 5 so: 1->4, 2->5 (will be swapped below), 3->6
       matches.push({
         id: `${groupId}-match-${matchId++}`,
         groupId,
@@ -71,6 +74,15 @@ const generateGroupMatches = (
         awayGoals: null,
         played: false,
       });
+    });
+    
+    // Swap matchday 2 with matchday 5 for proper home/away alternation
+    matches.forEach((match, idx) => {
+      if (match.matchday === 2) {
+        matches[idx] = { ...match, matchday: 5 };
+      } else if (match.matchday === 5) {
+        matches[idx] = { ...match, matchday: 2 };
+      }
     });
   }
   
@@ -119,7 +131,7 @@ const getKnockoutRounds = (numTeams: number): KnockoutRound[] => {
   return rounds;
 };
 
-// Generate knockout bracket with byes
+// Generate knockout bracket with byes (original function for random/seeded bracket)
 const generateKnockoutBracket = (
   teamIds: string[],
   seeds: number[],
@@ -142,13 +154,7 @@ const generateKnockoutBracket = (
     .sort((a, b) => a.seed - b.seed);
   
   // Place teams in bracket positions
-  // For standard bracket: 1v16, 8v9, 5v12, 4v13, 3v14, 6v11, 7v10, 2v15
-  // Simplified: place by seed order, byes go to top seeds
   sortedBySeeds.forEach((team, index) => {
-    if (index < numByes) {
-      // This team gets a bye - will appear in second round
-      // For now, mark as advancing
-    }
     seededTeams[index] = team.id;
   });
   
@@ -229,6 +235,163 @@ const generateKnockoutBracket = (
     const prevRound = rounds[roundIdx - 1];
     const prevRoundMatches = series.filter(s => s.round === prevRound).length;
     const numMatchesInRound = prevRoundMatches / 2;
+    
+    const isFinal = round === "final";
+    const format = isFinal ? finalFormat : matchFormat;
+    const isNeutral = format === "neutral";
+    const isSingleLeg = format === "single" || format === "neutral";
+    
+    for (let i = 0; i < numMatchesInRound; i++) {
+      const leg1: KnockoutMatch = {
+        id: `knockout-${matchId++}`,
+        round,
+        bracketPosition: i + 1,
+        leg: 1,
+        team1Id: null,
+        team2Id: null,
+        team1Goals: null,
+        team2Goals: null,
+        played: false,
+        isNeutralVenue: isNeutral,
+        isBye: false,
+      };
+      matches.push(leg1);
+      
+      let leg2Id: string | null = null;
+      if (!isSingleLeg) {
+        const leg2: KnockoutMatch = {
+          id: `knockout-${matchId++}`,
+          round,
+          bracketPosition: i + 1,
+          leg: 2,
+          team1Id: null,
+          team2Id: null,
+          team1Goals: null,
+          team2Goals: null,
+          played: false,
+          isNeutralVenue: false,
+          isBye: false,
+        };
+        matches.push(leg2);
+        leg2Id = leg2.id;
+      }
+      
+      const newSeries: KnockoutSeries = {
+        id: `series-${seriesId++}`,
+        round,
+        bracketPosition: i + 1,
+        team1Id: null,
+        team2Id: null,
+        team1Seed: 0,
+        team2Seed: 0,
+        leg1Id: leg1.id,
+        leg2Id,
+        winnerId: null,
+        team1Aggregate: 0,
+        team2Aggregate: 0,
+        isBye: false,
+      };
+      series.push(newSeries);
+    }
+  }
+  
+  return { matches, series };
+};
+
+// Generate knockout bracket with FIXED matchups (for groups_knockout format)
+// Teams are already paired: [team1A, team2A, team1B, team2B, ...]
+// Each consecutive pair becomes a matchup
+const generateKnockoutBracketWithFixedMatchups = (
+  teamIds: string[],
+  seeds: number[],
+  matchFormat: MatchFormat,
+  finalFormat: MatchFormat
+): { matches: KnockoutMatch[]; series: KnockoutSeries[] } => {
+  const matches: KnockoutMatch[] = [];
+  const series: KnockoutSeries[] = [];
+  
+  const numTeams = teamIds.length;
+  const numFirstRoundMatchups = Math.ceil(numTeams / 2);
+  const rounds = getKnockoutRounds(numTeams);
+  const firstRound = rounds[0];
+  
+  let matchId = 1;
+  let seriesId = 1;
+  
+  // Generate first round matchups from pre-paired teams
+  // Teams come in pairs: [1A, 2B, 1C, 2D, 1B, 2A, 1D, 2C]
+  // So matchups are: 1A vs 2B, 1C vs 2D, 1B vs 2A, 1D vs 2C
+  for (let i = 0; i < numFirstRoundMatchups; i++) {
+    const team1Id = teamIds[i * 2] || null;
+    const team2Id = teamIds[i * 2 + 1] || null;
+    
+    const isBye = !team1Id || !team2Id;
+    const isFinal = firstRound === "final";
+    const format = isFinal ? finalFormat : matchFormat;
+    const isNeutral = format === "neutral";
+    const isSingleLeg = format === "single" || format === "neutral";
+    
+    // Create leg 1 - team1 (better seed/position) is AWAY first
+    // So team2 (lower seed) is HOME in first leg
+    const leg1: KnockoutMatch = {
+      id: `knockout-${matchId++}`,
+      round: firstRound,
+      bracketPosition: i + 1,
+      leg: 1,
+      team1Id: team2Id, // Lower seed is home in leg 1
+      team2Id: team1Id, // Higher seed is away in leg 1
+      team1Goals: isBye ? 0 : null,
+      team2Goals: isBye ? 0 : null,
+      played: isBye,
+      isNeutralVenue: isNeutral,
+      isBye,
+    };
+    matches.push(leg1);
+    
+    let leg2Id: string | null = null;
+    if (!isSingleLeg && !isBye) {
+      const leg2: KnockoutMatch = {
+        id: `knockout-${matchId++}`,
+        round: firstRound,
+        bracketPosition: i + 1,
+        leg: 2,
+        team1Id: team1Id, // Higher seed is home in leg 2
+        team2Id: team2Id, // Lower seed is away in leg 2
+        team1Goals: null,
+        team2Goals: null,
+        played: false,
+        isNeutralVenue: false,
+        isBye: false,
+      };
+      matches.push(leg2);
+      leg2Id = leg2.id;
+    }
+    
+    // In series, team1 is the BETTER seed (first place), team2 is the worse seed
+    const newSeries: KnockoutSeries = {
+      id: `series-${seriesId++}`,
+      round: firstRound,
+      bracketPosition: i + 1,
+      team1Id: team1Id, // Better position (1st place)
+      team2Id: team2Id, // Worse position (2nd place)
+      team1Seed: i * 2 + 1,
+      team2Seed: i * 2 + 2,
+      leg1Id: leg1.id,
+      leg2Id,
+      winnerId: isBye ? (team1Id || team2Id) : null,
+      team1Aggregate: 0,
+      team2Aggregate: 0,
+      isBye,
+    };
+    series.push(newSeries);
+  }
+  
+  // Generate placeholder matches for subsequent rounds
+  for (let roundIdx = 1; roundIdx < rounds.length; roundIdx++) {
+    const round = rounds[roundIdx];
+    const prevRound = rounds[roundIdx - 1];
+    const prevRoundMatches = series.filter(s => s.round === prevRound).length;
+    const numMatchesInRound = Math.ceil(prevRoundMatches / 2);
     
     const isFinal = round === "final";
     const format = isFinal ? finalFormat : matchFormat;
@@ -825,15 +988,132 @@ export const useCompetitionState = () => {
     return qualified;
   }, [competitionState]);
 
-  // Advance to knockout stage
+  // Advance to knockout stage with proper bracket seeding
+  // Teams from same group go to opposite sides of bracket
+  // Example for 2 groups: 1A vs 2B (top), 1B vs 2A (bottom)
+  // Example for 4 groups: 1A vs 2B, 1C vs 2D (top), 1B vs 2A, 1D vs 2C (bottom)
   const advanceToKnockout = useCallback(() => {
     if (!isGroupStageComplete || !competitionState?.config.knockoutConfig) return;
+    if (!competitionState.groups || !competitionState.config.groupConfig) return;
     
-    const qualifiedTeams = getQualifiedTeamsFromGroups();
-    const seeds = qualifiedTeams.map((_, i) => i + 1);
+    const { qualificationRule } = competitionState.config.groupConfig;
+    const numGroups = competitionState.groups.length;
     
-    const { matches, series } = generateKnockoutBracket(
-      qualifiedTeams,
+    // Get qualified teams organized by group and position
+    const qualifiedByPosition: { teamId: string; groupIndex: number; position: number }[] = [];
+    
+    for (let i = 0; i < numGroups; i++) {
+      const group = competitionState.groups[i];
+      const sortedStandings = sortGroupStandings(group.standings);
+      
+      // First place
+      if (sortedStandings[0]) {
+        qualifiedByPosition.push({
+          teamId: sortedStandings[0].teamId,
+          groupIndex: i,
+          position: 1,
+        });
+      }
+      
+      // Second place (if rule allows)
+      if ((qualificationRule === "first_second" || qualificationRule === "first_second_best_thirds") 
+          && sortedStandings[1]) {
+        qualifiedByPosition.push({
+          teamId: sortedStandings[1].teamId,
+          groupIndex: i,
+          position: 2,
+        });
+      }
+    }
+    
+    // Add best thirds if applicable (handled separately)
+    if (qualificationRule === "first_second_best_thirds" && competitionState.config.groupConfig.bestThirdsCount) {
+      const thirds: ThirdPlaceTeam[] = [];
+      for (const group of competitionState.groups) {
+        const sortedStandings = sortGroupStandings(group.standings);
+        if (sortedStandings[2]) {
+          thirds.push({
+            teamId: sortedStandings[2].teamId,
+            groupId: group.id,
+            groupLetter: group.letter,
+            standing: sortedStandings[2],
+          });
+        }
+      }
+      const sortedThirds = thirds.sort((a, b) => {
+        if (b.standing.points !== a.standing.points) return b.standing.points - a.standing.points;
+        if (b.standing.goalDifference !== a.standing.goalDifference) 
+          return b.standing.goalDifference - a.standing.goalDifference;
+        return b.standing.goalsFor - a.standing.goalsFor;
+      });
+      const bestThirds = sortedThirds.slice(0, competitionState.config.groupConfig.bestThirdsCount);
+      bestThirds.forEach((t, idx) => {
+        qualifiedByPosition.push({
+          teamId: t.teamId,
+          groupIndex: competitionState.groups!.findIndex(g => g.id === t.groupId),
+          position: 3,
+        });
+      });
+    }
+    
+    // Now arrange teams so teams from same group go to opposite sides of bracket
+    // For first/second rule with n groups, we create n matchups
+    // Pattern: 1A vs 2B (top), 1B vs 2A (bottom), 1C vs 2D (top), 1D vs 2C (bottom), etc.
+    
+    const orderedTeams: string[] = [];
+    const firsts = qualifiedByPosition.filter(t => t.position === 1).sort((a, b) => a.groupIndex - b.groupIndex);
+    const seconds = qualifiedByPosition.filter(t => t.position === 2).sort((a, b) => a.groupIndex - b.groupIndex);
+    const thirds = qualifiedByPosition.filter(t => t.position === 3);
+    
+    if (qualificationRule === "first_second" || qualificationRule === "first_second_best_thirds") {
+      // Pair groups: A-B, C-D, E-F, etc.
+      // For each pair: 1A vs 2B goes to top, 1B vs 2A goes to bottom
+      const topBracket: { team1: string; team2: string }[] = [];
+      const bottomBracket: { team1: string; team2: string }[] = [];
+      
+      for (let i = 0; i < numGroups; i += 2) {
+        const first1 = firsts.find(t => t.groupIndex === i);
+        const first2 = firsts.find(t => t.groupIndex === i + 1);
+        const second1 = seconds.find(t => t.groupIndex === i);
+        const second2 = seconds.find(t => t.groupIndex === i + 1);
+        
+        if (first1 && second2) {
+          // 1A vs 2B on top (lower seed = first1 is higher in standings)
+          topBracket.push({ team1: first1.teamId, team2: second2.teamId });
+        }
+        if (first2 && second1) {
+          // 1B vs 2A on bottom
+          bottomBracket.push({ team1: first2.teamId, team2: second1.teamId });
+        }
+      }
+      
+      // Add thirds to the mix if needed (they fill remaining spots)
+      // For simplicity, add them at the end
+      
+      // Build ordered teams for bracket generation
+      // Top bracket matchups first, then bottom bracket matchups
+      for (const matchup of topBracket) {
+        orderedTeams.push(matchup.team1, matchup.team2);
+      }
+      for (const matchup of bottomBracket) {
+        orderedTeams.push(matchup.team1, matchup.team2);
+      }
+      
+      // Add thirds if any (they go to wherever there's space)
+      thirds.forEach(t => {
+        if (!orderedTeams.includes(t.teamId)) {
+          orderedTeams.push(t.teamId);
+        }
+      });
+    } else {
+      // first_only rule - just use firsts in order
+      firsts.forEach(t => orderedTeams.push(t.teamId));
+    }
+    
+    const seeds = orderedTeams.map((_, i) => i + 1);
+    
+    const { matches, series } = generateKnockoutBracketWithFixedMatchups(
+      orderedTeams,
       seeds,
       competitionState.config.knockoutConfig.matchFormat,
       competitionState.config.knockoutConfig.finalFormat
@@ -844,7 +1124,7 @@ export const useCompetitionState = () => {
       phase: "knockout",
       knockoutMatches: matches,
       knockoutSeries: series,
-      qualifiedFromGroups: qualifiedTeams,
+      qualifiedFromGroups: orderedTeams,
     } : null);
   }, [isGroupStageComplete, competitionState, getQualifiedTeamsFromGroups]);
 
@@ -1059,46 +1339,65 @@ export const useCompetitionState = () => {
         const isSingleLeg = !s.leg2Id;
         
         // Get the match to understand team mapping
-        // In leg1: team1Id = series.team1Id (home), team2Id = series.team2Id (away)
-        // In leg2: team1Id = series.team2Id (home), team2Id = series.team1Id (away)
-        // So we need to correctly assign goals to series teams
+        // For generateKnockoutBracketWithFixedMatchups:
+        // In leg1: match.team1Id = series.team2Id (lower seed home), match.team2Id = series.team1Id (better seed away)
+        // In leg2: match.team1Id = series.team1Id (better seed home), match.team2Id = series.team2Id (lower seed away)
         
-        // Update aggregates
+        // We need to map match goals to series team goals based on which team is which in the match
+        const leg1Match = prev.knockoutMatches.find(m => m.id === s.leg1Id);
+        
+        // Update aggregates by mapping match teams to series teams
         if (isSingleLeg) {
-          // Single leg: match.team1 = series.team1, match.team2 = series.team2
-          updated.team1Aggregate = result.team1Goals;
-          updated.team2Aggregate = result.team2Goals;
+          // Single leg - need to check who is who
+          // match.team1Id could be either series.team1Id or series.team2Id
+          if (match.team1Id === s.team1Id) {
+            updated.team1Aggregate = result.team1Goals;
+            updated.team2Aggregate = result.team2Goals;
+          } else {
+            // match.team1Id = series.team2Id
+            updated.team1Aggregate = result.team2Goals;
+            updated.team2Aggregate = result.team1Goals;
+          }
         } else if (!isSecondLeg) {
-          // First leg: series.team1 is home (match.team1), series.team2 is away (match.team2)
-          // So series.team1's goals = match.team1Goals (home goals)
-          // And series.team2's goals = match.team2Goals (away goals)
-          updated.team1Aggregate = result.team1Goals;
-          updated.team2Aggregate = result.team2Goals;
+          // First leg
+          // In our new function: leg1 match.team1 = series.team2 (home), match.team2 = series.team1 (away)
+          // So: series.team1's leg1 goals = match.team2Goals (they're away)
+          //     series.team2's leg1 goals = match.team1Goals (they're home)
+          if (match.team1Id === s.team2Id && match.team2Id === s.team1Id) {
+            // New format: team2 is home, team1 is away
+            updated.team1Aggregate = result.team2Goals; // series.team1 scored as away
+            updated.team2Aggregate = result.team1Goals; // series.team2 scored as home
+          } else {
+            // Old format or different mapping
+            updated.team1Aggregate = result.team1Goals;
+            updated.team2Aggregate = result.team2Goals;
+          }
         } else {
-          // Second leg: series.team2 is home (match.team1), series.team1 is away (match.team2)
-          // So in the second leg:
-          // match.team1Goals = series.team2's home goals
-          // match.team2Goals = series.team1's away goals
-          updated.team1Aggregate = (s.team1Aggregate || 0) + result.team2Goals;
-          updated.team2Aggregate = (s.team2Aggregate || 0) + result.team1Goals;
+          // Second leg
+          // In our new function: leg2 match.team1 = series.team1 (home), match.team2 = series.team2 (away)
+          // So: series.team1's leg2 goals = match.team1Goals (they're home)
+          //     series.team2's leg2 goals = match.team2Goals (they're away)
+          if (match.team1Id === s.team1Id && match.team2Id === s.team2Id) {
+            // New format: team1 is home, team2 is away
+            updated.team1Aggregate = (s.team1Aggregate || 0) + result.team1Goals;
+            updated.team2Aggregate = (s.team2Aggregate || 0) + result.team2Goals;
+          } else {
+            // Old format: leg2 match.team1 = series.team2 (home in vuelta)
+            updated.team1Aggregate = (s.team1Aggregate || 0) + result.team2Goals;
+            updated.team2Aggregate = (s.team2Aggregate || 0) + result.team1Goals;
+          }
         }
         
         // Set winner if determined
         if (result.winnerId) {
           // Map the winnerId from match context to series context
-          if (isSecondLeg) {
-            // In second leg, match.team1Id = series.team2Id
-            // So if winnerId = match.team1Id, it means series.team2 won
-            // And if winnerId = match.team2Id, it means series.team1 won
-            const leg2Match = prev.knockoutMatches.find(m => m.id === matchId);
-            if (leg2Match) {
-              if (result.winnerId === leg2Match.team1Id) {
-                updated.winnerId = s.team2Id;
-              } else {
-                updated.winnerId = s.team1Id;
-              }
-            }
+          // winnerId is the match.team1Id or match.team2Id - need to map to series
+          if (result.winnerId === s.team1Id) {
+            updated.winnerId = s.team1Id;
+          } else if (result.winnerId === s.team2Id) {
+            updated.winnerId = s.team2Id;
           } else {
+            // Fallback - direct assignment
             updated.winnerId = result.winnerId;
           }
         } else if (isSingleLeg || isSecondLeg) {
@@ -1139,12 +1438,26 @@ export const useCompetitionState = () => {
             updatedSeries[nextSeriesIndex] = nextSeries;
             
             // Also update matches for that series
+            // For next round matches:
+            // - Leg1: team1 = series.team2 (home), team2 = series.team1 (away)  
+            // - Leg2: team1 = series.team1 (home), team2 = series.team2 (away)
+            const nextSeriesAfterUpdate = updatedSeries[nextSeriesIndex];
             updatedMatches.forEach((m, i) => {
               if (m.round === nextRound && m.bracketPosition === nextBracketPosition) {
-                if (isFirstTeam) {
-                  updatedMatches[i] = { ...m, team1Id: completedSeries.winnerId };
+                if (m.leg === 1) {
+                  // Leg1: team2 (lower seed) is home, team1 (better seed) is away
+                  updatedMatches[i] = { 
+                    ...m, 
+                    team1Id: nextSeriesAfterUpdate.team2Id, // lower seed home
+                    team2Id: nextSeriesAfterUpdate.team1Id  // better seed away
+                  };
                 } else {
-                  updatedMatches[i] = { ...m, team2Id: completedSeries.winnerId };
+                  // Leg2: team1 (better seed) is home, team2 (lower seed) is away
+                  updatedMatches[i] = { 
+                    ...m, 
+                    team1Id: nextSeriesAfterUpdate.team1Id, // better seed home
+                    team2Id: nextSeriesAfterUpdate.team2Id  // lower seed away
+                  };
                 }
               }
             });
