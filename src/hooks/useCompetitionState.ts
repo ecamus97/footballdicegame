@@ -1213,29 +1213,48 @@ export const useCompetitionState = () => {
     let winnerId: string | undefined;
     
     if (isSingleLeg || isSecondLeg) {
-      // Calculate aggregate
-      // For second leg:
-      // - match.team1Id = series.team2Id (home in vuelta)
-      // - match.team2Id = series.team1Id (away in vuelta)
-      // - series.team1Aggregate = goals scored by series.team1 in leg1
-      // - series.team2Aggregate = goals scored by series.team2 in leg1
-      // 
-      // In second leg match result:
-      // - finalTeam1Goals = goals by match.team1 (series.team2) in vuelta
-      // - finalTeam2Goals = goals by match.team2 (series.team1) in vuelta
+      // Calculate aggregate by TEAM ID
+      // Get leg1 match to find goals scored by each series team
+      const leg1Match = competitionState.knockoutMatches.find(m => m.id === series.leg1Id);
       
       let seriesTeam1TotalGoals = 0;
       let seriesTeam2TotalGoals = 0;
       
+      // Add leg1 goals (already played)
+      if (leg1Match && leg1Match.played && leg1Match.team1Goals !== null && leg1Match.team2Goals !== null) {
+        // In leg1, match.team1 is home, match.team2 is away
+        if (leg1Match.team1Id === series.team1Id) {
+          // series.team1 was home in leg1
+          seriesTeam1TotalGoals += leg1Match.team1Goals;
+          seriesTeam2TotalGoals += leg1Match.team2Goals;
+        } else {
+          // series.team2 was home in leg1
+          seriesTeam1TotalGoals += leg1Match.team2Goals;
+          seriesTeam2TotalGoals += leg1Match.team1Goals;
+        }
+      }
+      
+      // Add current match goals (leg2 or single leg)
       if (isSecondLeg) {
-        // series.team1's total = leg1 goals + vuelta goals (as away in vuelta, i.e., finalTeam2Goals)
-        // series.team2's total = leg1 goals + vuelta goals (as home in vuelta, i.e., finalTeam1Goals)
-        seriesTeam1TotalGoals = (series.team1Aggregate || 0) + finalTeam2Goals;
-        seriesTeam2TotalGoals = (series.team2Aggregate || 0) + finalTeam1Goals;
+        // In this match (leg2), match.team1Id is home, match.team2Id is away
+        if (match.team1Id === series.team1Id) {
+          // series.team1 is home in leg2
+          seriesTeam1TotalGoals += finalTeam1Goals;
+          seriesTeam2TotalGoals += finalTeam2Goals;
+        } else {
+          // series.team2 is home in leg2
+          seriesTeam1TotalGoals += finalTeam2Goals;
+          seriesTeam2TotalGoals += finalTeam1Goals;
+        }
       } else {
-        // Single leg
-        seriesTeam1TotalGoals = finalTeam1Goals;
-        seriesTeam2TotalGoals = finalTeam2Goals;
+        // Single leg - map match teams to series teams
+        if (match.team1Id === series.team1Id) {
+          seriesTeam1TotalGoals = finalTeam1Goals;
+          seriesTeam2TotalGoals = finalTeam2Goals;
+        } else {
+          seriesTeam1TotalGoals = finalTeam2Goals;
+          seriesTeam2TotalGoals = finalTeam1Goals;
+        }
       }
       
       if (seriesTeam1TotalGoals === seriesTeam2TotalGoals) {
@@ -1263,20 +1282,16 @@ export const useCompetitionState = () => {
         }
         
         penalties = { team1Penalties: team1Pens, team2Penalties: team2Pens, rounds: penaltyRounds };
-        // winnerId should be the match.team1Id or match.team2Id of the current match
+        // Winner based on penalties - return the MATCH team that won
+        // penalties.team1 = match.team1, penalties.team2 = match.team2
         winnerId = team1Pens > team2Pens ? match.team1Id! : match.team2Id!;
       } else {
-        // Determine winner - in second leg context, we return match.team1Id or match.team2Id
-        if (isSecondLeg) {
-          // seriesTeam1 = match.team2, seriesTeam2 = match.team1
-          winnerId = seriesTeam1TotalGoals > seriesTeam2TotalGoals 
-            ? match.team2Id! // series.team1 won
-            : match.team1Id!; // series.team2 won
-        } else {
-          winnerId = seriesTeam1TotalGoals > seriesTeam2TotalGoals 
-            ? match.team1Id! 
-            : match.team2Id!;
-        }
+        // Determine winner by aggregate - return the MATCH team that won
+        // We need to map series winner to match team
+        const seriesWinnerId = seriesTeam1TotalGoals > seriesTeam2TotalGoals 
+          ? series.team1Id 
+          : series.team2Id;
+        winnerId = seriesWinnerId!;
       }
     }
     
@@ -1292,6 +1307,12 @@ export const useCompetitionState = () => {
   }, [competitionState, getTeamById, rollDie, dieToGoals]);
 
   // Confirm knockout match result
+  // CRITICAL: Calculate aggregate by TEAM ID, not by match position
+  // In a two-leg series:
+  // - Leg 1: Team A (home) vs Team B (away) → A scores homeGoals, B scores awayGoals
+  // - Leg 2: Team B (home) vs Team A (away) → B scores homeGoals, A scores awayGoals
+  // - Global A = A's goals in leg1 (home) + A's goals in leg2 (away)
+  // - Global B = B's goals in leg1 (away) + B's goals in leg2 (home)
   const confirmKnockoutMatchResult = useCallback((
     matchId: string,
     result: {
@@ -1309,7 +1330,7 @@ export const useCompetitionState = () => {
     setCompetitionState(prev => {
       if (!prev?.knockoutMatches || !prev?.knockoutSeries) return prev;
       
-      // Update the match
+      // Update the match with results
       const updatedMatches = prev.knockoutMatches.map(m => {
         if (m.id !== matchId) return m;
         return {
@@ -1327,84 +1348,91 @@ export const useCompetitionState = () => {
         };
       });
       
-      // Find and update series
-      const match = prev.knockoutMatches.find(m => m.id === matchId);
-      if (!match) return prev;
+      // Find the match we just updated (with new results)
+      const currentMatch = updatedMatches.find(m => m.id === matchId);
+      if (!currentMatch) return prev;
       
+      // Update series with correct aggregate calculation
       const updatedSeries = prev.knockoutSeries.map(s => {
         if (s.leg1Id !== matchId && s.leg2Id !== matchId) return s;
         
         const updated = { ...s };
-        const isSecondLeg = s.leg2Id === matchId;
+        const isLeg1 = s.leg1Id === matchId;
+        const isLeg2 = s.leg2Id === matchId;
         const isSingleLeg = !s.leg2Id;
         
-        // Get the match to understand team mapping
-        // For generateKnockoutBracketWithFixedMatchups:
-        // In leg1: match.team1Id = series.team2Id (lower seed home), match.team2Id = series.team1Id (better seed away)
-        // In leg2: match.team1Id = series.team1Id (better seed home), match.team2Id = series.team2Id (lower seed away)
+        // Get both leg matches to calculate aggregate correctly
+        const leg1Match = updatedMatches.find(m => m.id === s.leg1Id);
+        const leg2Match = s.leg2Id ? updatedMatches.find(m => m.id === s.leg2Id) : null;
         
-        // We need to map match goals to series team goals based on which team is which in the match
-        const leg1Match = prev.knockoutMatches.find(m => m.id === s.leg1Id);
+        // CRITICAL FIX: Calculate aggregate by TEAM ID
+        // For each match, we check: which series team is home, which is away
+        // Then sum their goals accordingly
         
-        // Update aggregates by mapping match teams to series teams
-        if (isSingleLeg) {
-          // Single leg - need to check who is who
-          // match.team1Id could be either series.team1Id or series.team2Id
-          if (match.team1Id === s.team1Id) {
-            updated.team1Aggregate = result.team1Goals;
-            updated.team2Aggregate = result.team2Goals;
-          } else {
-            // match.team1Id = series.team2Id
-            updated.team1Aggregate = result.team2Goals;
-            updated.team2Aggregate = result.team1Goals;
-          }
-        } else if (!isSecondLeg) {
-          // First leg
-          // In our new function: leg1 match.team1 = series.team2 (home), match.team2 = series.team1 (away)
-          // So: series.team1's leg1 goals = match.team2Goals (they're away)
-          //     series.team2's leg1 goals = match.team1Goals (they're home)
-          if (match.team1Id === s.team2Id && match.team2Id === s.team1Id) {
-            // New format: team2 is home, team1 is away
-            updated.team1Aggregate = result.team2Goals; // series.team1 scored as away
-            updated.team2Aggregate = result.team1Goals; // series.team2 scored as home
-          } else {
-            // Old format or different mapping
-            updated.team1Aggregate = result.team1Goals;
-            updated.team2Aggregate = result.team2Goals;
-          }
-        } else {
-          // Second leg
-          // In our new function: leg2 match.team1 = series.team1 (home), match.team2 = series.team2 (away)
-          // So: series.team1's leg2 goals = match.team1Goals (they're home)
-          //     series.team2's leg2 goals = match.team2Goals (they're away)
-          if (match.team1Id === s.team1Id && match.team2Id === s.team2Id) {
-            // New format: team1 is home, team2 is away
-            updated.team1Aggregate = (s.team1Aggregate || 0) + result.team1Goals;
-            updated.team2Aggregate = (s.team2Aggregate || 0) + result.team2Goals;
-          } else {
-            // Old format: leg2 match.team1 = series.team2 (home in vuelta)
-            updated.team1Aggregate = (s.team1Aggregate || 0) + result.team2Goals;
-            updated.team2Aggregate = (s.team2Aggregate || 0) + result.team1Goals;
+        let seriesTeam1Goals = 0;
+        let seriesTeam2Goals = 0;
+        
+        // Calculate leg 1 goals for each series team
+        if (leg1Match && leg1Match.played && leg1Match.team1Goals !== null && leg1Match.team2Goals !== null) {
+          // In leg1, who is home (match.team1Id) and who is away (match.team2Id)?
+          if (leg1Match.team1Id === s.team1Id) {
+            // series.team1 is home in leg1
+            seriesTeam1Goals += leg1Match.team1Goals;
+            seriesTeam2Goals += leg1Match.team2Goals;
+          } else if (leg1Match.team1Id === s.team2Id) {
+            // series.team2 is home in leg1
+            seriesTeam1Goals += leg1Match.team2Goals;
+            seriesTeam2Goals += leg1Match.team1Goals;
           }
         }
         
-        // Set winner if determined
-        if (result.winnerId) {
-          // Map the winnerId from match context to series context
-          // winnerId is the match.team1Id or match.team2Id - need to map to series
-          if (result.winnerId === s.team1Id) {
-            updated.winnerId = s.team1Id;
-          } else if (result.winnerId === s.team2Id) {
-            updated.winnerId = s.team2Id;
-          } else {
-            // Fallback - direct assignment
-            updated.winnerId = result.winnerId;
+        // Calculate leg 2 goals for each series team
+        if (leg2Match && leg2Match.played && leg2Match.team1Goals !== null && leg2Match.team2Goals !== null) {
+          // In leg2, who is home (match.team1Id) and who is away (match.team2Id)?
+          if (leg2Match.team1Id === s.team1Id) {
+            // series.team1 is home in leg2
+            seriesTeam1Goals += leg2Match.team1Goals;
+            seriesTeam2Goals += leg2Match.team2Goals;
+          } else if (leg2Match.team1Id === s.team2Id) {
+            // series.team2 is home in leg2
+            seriesTeam1Goals += leg2Match.team2Goals;
+            seriesTeam2Goals += leg2Match.team1Goals;
           }
-        } else if (isSingleLeg || isSecondLeg) {
-          if (updated.team1Aggregate > updated.team2Aggregate) {
-            updated.winnerId = s.team1Id;
-          } else if (updated.team2Aggregate > updated.team1Aggregate) {
-            updated.winnerId = s.team2Id;
+        }
+        
+        updated.team1Aggregate = seriesTeam1Goals;
+        updated.team2Aggregate = seriesTeam2Goals;
+        
+        // Determine winner
+        const seriesComplete = isSingleLeg || (isLeg2 && leg2Match?.played);
+        
+        if (seriesComplete) {
+          if (result.penalties) {
+            // Winner from penalties - map from match context to series context
+            // In penalties, result.winnerId is the match.team1Id or match.team2Id
+            // We need to map it to series.team1Id or series.team2Id
+            if (result.winnerId === currentMatch.team1Id) {
+              // The match.team1 won - find which series team that is
+              if (currentMatch.team1Id === s.team1Id) {
+                updated.winnerId = s.team1Id;
+              } else {
+                updated.winnerId = s.team2Id;
+              }
+            } else if (result.winnerId === currentMatch.team2Id) {
+              // The match.team2 won - find which series team that is
+              if (currentMatch.team2Id === s.team1Id) {
+                updated.winnerId = s.team1Id;
+              } else {
+                updated.winnerId = s.team2Id;
+              }
+            }
+          } else {
+            // Winner by aggregate
+            if (updated.team1Aggregate > updated.team2Aggregate) {
+              updated.winnerId = s.team1Id;
+            } else if (updated.team2Aggregate > updated.team1Aggregate) {
+              updated.winnerId = s.team2Id;
+            }
           }
         }
         
@@ -1422,7 +1450,7 @@ export const useCompetitionState = () => {
         
         if (nextRound) {
           const nextBracketPosition = Math.ceil(completedSeries.bracketPosition / 2);
-          const isFirstTeam = completedSeries.bracketPosition % 2 === 1;
+          const isFirstTeamInNextSeries = completedSeries.bracketPosition % 2 === 1;
           
           const nextSeriesIndex = updatedSeries.findIndex(
             s => s.round === nextRound && s.bracketPosition === nextBracketPosition
@@ -1430,33 +1458,36 @@ export const useCompetitionState = () => {
           
           if (nextSeriesIndex !== -1) {
             const nextSeries = { ...updatedSeries[nextSeriesIndex] };
-            if (isFirstTeam) {
+            
+            // Place winner in next series
+            if (isFirstTeamInNextSeries) {
               nextSeries.team1Id = completedSeries.winnerId;
             } else {
               nextSeries.team2Id = completedSeries.winnerId;
             }
             updatedSeries[nextSeriesIndex] = nextSeries;
             
-            // Also update matches for that series
-            // For next round matches:
-            // - Leg1: team1 = series.team2 (home), team2 = series.team1 (away)  
-            // - Leg2: team1 = series.team1 (home), team2 = series.team2 (away)
-            const nextSeriesAfterUpdate = updatedSeries[nextSeriesIndex];
+            // Update matches for the next series
+            // For two-leg format:
+            // - Leg1: team2 (worse seed) is HOME, team1 (better seed) is AWAY
+            // - Leg2: team1 (better seed) is HOME, team2 (worse seed) is AWAY
+            const nextSeriesUpdated = updatedSeries[nextSeriesIndex];
+            
             updatedMatches.forEach((m, i) => {
               if (m.round === nextRound && m.bracketPosition === nextBracketPosition) {
                 if (m.leg === 1) {
-                  // Leg1: team2 (lower seed) is home, team1 (better seed) is away
+                  // Leg1: series.team2 is home (match.team1), series.team1 is away (match.team2)
                   updatedMatches[i] = { 
                     ...m, 
-                    team1Id: nextSeriesAfterUpdate.team2Id, // lower seed home
-                    team2Id: nextSeriesAfterUpdate.team1Id  // better seed away
+                    team1Id: nextSeriesUpdated.team2Id,
+                    team2Id: nextSeriesUpdated.team1Id
                   };
                 } else {
-                  // Leg2: team1 (better seed) is home, team2 (lower seed) is away
+                  // Leg2: series.team1 is home (match.team1), series.team2 is away (match.team2)
                   updatedMatches[i] = { 
                     ...m, 
-                    team1Id: nextSeriesAfterUpdate.team1Id, // better seed home
-                    team2Id: nextSeriesAfterUpdate.team2Id  // lower seed away
+                    team1Id: nextSeriesUpdated.team1Id,
+                    team2Id: nextSeriesUpdated.team2Id
                   };
                 }
               }
