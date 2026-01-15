@@ -13,7 +13,6 @@ import {
   Globe, 
   Users, 
   Crown,
-  Sparkles
 } from "lucide-react";
 
 const Competition = () => {
@@ -155,24 +154,27 @@ const Competition = () => {
   // Show landing if no competition
   if (!competitionState) {
     return (
-      <div className="min-h-screen bg-background">
-        {/* Hero */}
-        <div className="container mx-auto px-4 py-16">
-          <div className="max-w-3xl mx-auto text-center space-y-6">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
-              <Sparkles className="w-4 h-4" />
-              Motor Universal de Competiciones
+      <div className="min-h-screen bg-gradient-to-b from-background via-background to-secondary/20">
+        {/* Hero Section */}
+        <div className="container mx-auto px-4 py-12 md:py-20">
+          <div className="max-w-4xl mx-auto text-center space-y-8">
+            {/* Logo/Icon */}
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-primary/70 shadow-lg shadow-primary/25 animate-pulse-subtle">
+              <Trophy className="w-10 h-10 text-primary-foreground" />
             </div>
             
-            <h1 className="text-5xl font-display font-bold tracking-tight">
-              Crea Tu Torneo
-            </h1>
-            
-            <p className="text-xl text-muted-foreground max-w-xl mx-auto">
-              Configura cualquier formato: Mundiales, Champions, Copas, Ligas con Playoffs, y más.
-            </p>
+            <div className="space-y-4">
+              <h1 className="text-5xl md:text-7xl font-display font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text">
+                Simulador de Torneos
+              </h1>
+              <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                Crea y simula cualquier formato de competición con el sistema de dados. 
+                Mundiales, Champions, Copas nacionales y más.
+              </p>
+            </div>
 
-            <div className="flex items-center justify-center gap-3">
+            {/* Main Actions */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
               <CompetitionConfigDialog 
                 onCreateCompetition={handleCreateCompetition}
                 teamLevels={teamLevels}
@@ -189,67 +191,52 @@ const Competition = () => {
           </div>
 
           {/* Feature Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 max-w-4xl mx-auto">
-            <Card className="group hover:shadow-lg transition-all border-2 hover:border-primary/30">
-              <CardContent className="pt-6 text-center space-y-3">
-                <div className="w-12 h-12 mx-auto rounded-xl bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Globe className="w-6 h-6 text-blue-500" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-20 max-w-5xl mx-auto">
+            <Card className="group relative overflow-hidden border-0 bg-card/80 backdrop-blur shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent" />
+              <CardContent className="pt-8 pb-6 text-center space-y-4 relative">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25 group-hover:scale-110 transition-transform duration-300">
+                  <Globe className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="font-semibold">Fase de Grupos</h3>
-                <p className="text-sm text-muted-foreground">
-                  Grupos de 4 equipos con tablas independientes y clasificación automática.
+                <h3 className="font-display text-xl font-bold">Fase de Grupos</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Grupos de 4 equipos con tablas de posiciones y clasificación automática.
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="group hover:shadow-lg transition-all border-2 hover:border-primary/30">
-              <CardContent className="pt-6 text-center space-y-3">
-                <div className="w-12 h-12 mx-auto rounded-xl bg-green-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Users className="w-6 h-6 text-green-500" />
+            <Card className="group relative overflow-hidden border-0 bg-card/80 backdrop-blur shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent" />
+              <CardContent className="pt-8 pb-6 text-center space-y-4 relative">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25 group-hover:scale-110 transition-transform duration-300">
+                  <Users className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="font-semibold">Sorteo Visual</h3>
-                <p className="text-sm text-muted-foreground">
-                  Sorteo paso a paso con animaciones. Configura bombos según nivel.
+                <h3 className="font-display text-xl font-bold">Sorteo Interactivo</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Sorteo visual paso a paso con animaciones. Bombos configurables por nivel.
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="group hover:shadow-lg transition-all border-2 hover:border-primary/30">
-              <CardContent className="pt-6 text-center space-y-3">
-                <div className="w-12 h-12 mx-auto rounded-xl bg-purple-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Crown className="w-6 h-6 text-purple-500" />
+            <Card className="group relative overflow-hidden border-0 bg-card/80 backdrop-blur shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent" />
+              <CardContent className="pt-8 pb-6 text-center space-y-4 relative">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/25 group-hover:scale-110 transition-transform duration-300">
+                  <Crown className="w-7 h-7 text-white" />
                 </div>
-                <h3 className="font-semibold">Eliminatorias</h3>
-                <p className="text-sm text-muted-foreground">
-                  Bracket automático con byes, ida/vuelta o partido único.
+                <h3 className="font-display text-xl font-bold">Eliminatorias</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Bracket automático con partidos de ida/vuelta o eliminación directa.
                 </p>
               </CardContent>
             </Card>
           </div>
+        </div>
 
-          {/* Quick Formats */}
-          <div className="mt-16 max-w-2xl mx-auto">
-            <h2 className="text-center text-lg font-semibold mb-6 text-muted-foreground">
-              Formatos Populares
-            </h2>
-            <div className="flex flex-wrap justify-center gap-3">
-              {[
-                { name: "Copa del Mundo", emoji: "🌍" },
-                { name: "Champions League", emoji: "⭐" },
-                { name: "Copa Libertadores", emoji: "🏆" },
-                { name: "Liga", emoji: "🏟️" },
-                { name: "Eliminatoria Directa", emoji: "⚔️" },
-              ].map(format => (
-                <div
-                  key={format.name}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted/50 text-sm"
-                >
-                  <span>{format.emoji}</span>
-                  <span>{format.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* Background decoration */}
+        <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+          <div className="absolute top-1/4 -left-32 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 -right-32 w-64 h-64 bg-accent/5 rounded-full blur-3xl" />
         </div>
       </div>
     );
@@ -257,13 +244,20 @@ const Competition = () => {
 
   // Show competition view
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/10">
       {/* Header */}
-      <header className="border-b bg-card/50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-primary" />
-            <span className="font-semibold">{competitionState.config.name}</span>
+      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-lg">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm">
+              <Trophy className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <div>
+              <span className="font-display text-lg font-bold">{competitionState.config.name}</span>
+              <span className="hidden sm:inline text-sm text-muted-foreground ml-2">
+                • {getPhaseLabel(competitionState.phase)}
+              </span>
+            </div>
           </div>
           
           <CompetitionSaveLoad

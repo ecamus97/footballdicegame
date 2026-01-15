@@ -53,12 +53,14 @@ export const GroupStageView = ({
   return (
     <div className="space-y-6">
       {/* Header with Matchday Controls */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-display font-bold flex items-center gap-2">
-          <Trophy className="w-6 h-6" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h2 className="text-2xl md:text-3xl font-display font-bold flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+            <Trophy className="w-5 h-5 text-white" />
+          </div>
           Fase de Grupos
         </h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {Array.from({ length: maxMatchday }, (_, i) => i + 1).map(day => {
             const allPlayed = groups.every(g => 
               g.matches.filter(m => m.matchday === day).every(m => m.played)
@@ -70,9 +72,12 @@ export const GroupStageView = ({
                 size="sm"
                 onClick={() => onSimulateMatchday(day)}
                 disabled={allPlayed}
-                className="gap-1"
+                className={cn(
+                  "gap-1.5 transition-all",
+                  allPlayed && "opacity-70"
+                )}
               >
-                {allPlayed && <CheckCircle2 className="w-3 h-3" />}
+                {allPlayed && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
                 Fecha {day}
               </Button>
             );
@@ -82,10 +87,10 @@ export const GroupStageView = ({
 
       {/* Groups Tabs */}
       <Tabs defaultValue="all" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="all">Todos</TabsTrigger>
+        <TabsList className="mb-4 h-auto flex-wrap">
+          <TabsTrigger value="all" className="font-medium">Todos</TabsTrigger>
           {groups.map((group, index) => (
-            <TabsTrigger key={group.id} value={group.id}>
+            <TabsTrigger key={group.id} value={group.id} className="font-medium">
               Grupo {getGroupLetter(index)}
             </TabsTrigger>
           ))}
@@ -147,23 +152,23 @@ const GroupCard = ({
   const progress = totalMatches > 0 ? (completedMatches / totalMatches) * 100 : 0;
 
   return (
-    <Card>
-      <CardHeader className="py-3 px-4">
+    <Card className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-all duration-300">
+      <CardHeader className="py-3 px-4 bg-gradient-to-r from-primary/5 to-transparent">
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">
+            <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 text-primary-foreground flex items-center justify-center font-display font-bold text-sm shadow-sm">
               {getGroupLetter(groupIndex)}
             </span>
-            Grupo {getGroupLetter(groupIndex)}
+            <span className="font-display text-lg">Grupo {getGroupLetter(groupIndex)}</span>
           </div>
-          <Badge variant="outline">
+          <Badge variant="secondary" className="font-medium">
             {completedMatches}/{totalMatches}
           </Badge>
         </CardTitle>
         {/* Progress bar */}
-        <div className="h-1 bg-muted rounded-full overflow-hidden mt-2">
+        <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-2">
           <div 
-            className="h-full bg-primary transition-all duration-500"
+            className="h-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-500 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>

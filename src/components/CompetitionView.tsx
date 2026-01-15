@@ -12,7 +12,6 @@ import {
   Users, 
   Trophy, 
   Crown,
-  ChevronRight,
   Settings,
   RotateCcw,
   ArrowRight,
@@ -118,24 +117,26 @@ export const CompetitionView = ({
   return (
     <div className="space-y-6">
       {/* Competition Header */}
-      <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-        <CardContent className="py-4">
-          <div className="flex items-center justify-between">
+      <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent shadow-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+        <CardContent className="py-5 relative">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                <Trophy className="w-6 h-6 text-primary" />
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/25">
+                <Trophy className="w-7 h-7 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-2xl font-display font-bold">{config.name}</h1>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <PhaseIcon className={cn("w-4 h-4", phaseInfo.color)} />
-                  <span>{phaseInfo.label}</span>
-                  <ChevronRight className="w-4 h-4" />
-                  <Badge variant="outline">
+                <h1 className="text-2xl md:text-3xl font-display font-bold tracking-tight">{config.name}</h1>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <Badge variant="secondary" className="gap-1.5 font-medium">
+                    <PhaseIcon className={cn("w-3.5 h-3.5", phaseInfo.color)} />
+                    {phaseInfo.label}
+                  </Badge>
+                  <Badge variant="outline" className="text-muted-foreground">
                     {config.participatingTeamIds.length} equipos
                   </Badge>
                   {config.groupConfig && (
-                    <Badge variant="outline">
+                    <Badge variant="outline" className="text-muted-foreground">
                       {config.groupConfig.numGroups} grupos
                     </Badge>
                   )}
@@ -143,21 +144,23 @@ export const CompetitionView = ({
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               {progress && (
-                <div className="text-right">
-                  <div className="text-sm text-muted-foreground">{progress.label}</div>
-                  <div className="font-bold">{progress.played}/{progress.total}</div>
+                <div className="text-right hidden sm:block">
+                  <div className="text-xs text-muted-foreground uppercase tracking-wide">{progress.label}</div>
+                  <div className="text-2xl font-display font-bold text-primary">
+                    {progress.played}<span className="text-muted-foreground text-lg">/{progress.total}</span>
+                  </div>
                 </div>
               )}
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={onReset}
-                className="gap-2"
+                className="gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
               >
                 <RotateCcw className="w-4 h-4" />
-                Reiniciar
+                <span className="hidden sm:inline">Reiniciar</span>
               </Button>
             </div>
           </div>
@@ -166,13 +169,13 @@ export const CompetitionView = ({
 
       {/* Phase Navigation */}
       {(canGoToGroups || canGoToKnockout) && (
-        <div className="flex gap-2">
+        <div className="flex gap-2 animate-fade-in">
           {canGoToGroups && displayPhase !== "groups" && (
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => onGoToPhase?.("groups")}
-              className="gap-2"
+              className="gap-2 hover:bg-primary/5"
             >
               <ArrowLeft className="w-4 h-4" />
               Ver Fase de Grupos
@@ -183,7 +186,7 @@ export const CompetitionView = ({
               variant="outline" 
               size="sm" 
               onClick={() => onGoToPhase?.("knockout")}
-              className="gap-2"
+              className="gap-2 hover:bg-primary/5"
             >
               Ver Eliminatorias
               <ArrowRight className="w-4 h-4" />
@@ -194,15 +197,20 @@ export const CompetitionView = ({
 
       {/* Advance to Knockout Button */}
       {phase === "groups" && isGroupStageComplete && config.knockoutConfig && (
-        <Card className="bg-gradient-to-r from-purple-500/10 to-purple-500/5 border-purple-500/30">
-          <CardContent className="py-4 flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-purple-600">¡Fase de grupos completada!</h3>
-              <p className="text-sm text-muted-foreground">
-                Los equipos clasificados están listos para las eliminatorias
-              </p>
+        <Card className="relative overflow-hidden border-0 bg-gradient-to-r from-purple-500/10 via-purple-500/5 to-transparent shadow-md animate-scale-in">
+          <CardContent className="py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                <Crown className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-display text-lg font-bold text-purple-700">¡Fase de grupos completada!</h3>
+                <p className="text-sm text-muted-foreground">
+                  Los equipos clasificados están listos para las eliminatorias
+                </p>
+              </div>
             </div>
-            <Button onClick={onAdvanceToKnockout} className="gap-2 bg-purple-600 hover:bg-purple-700">
+            <Button onClick={onAdvanceToKnockout} className="gap-2 bg-purple-600 hover:bg-purple-700 shadow-lg shadow-purple-500/25">
               <ArrowRight className="w-4 h-4" />
               Avanzar a Eliminatorias
             </Button>

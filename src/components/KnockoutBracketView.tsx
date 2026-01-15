@@ -137,9 +137,11 @@ export const KnockoutBracketView = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Crown className="w-6 h-6 text-purple-500" />
-        <h2 className="text-2xl font-display font-bold">Fase de Eliminatorias</h2>
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/25">
+          <Crown className="w-5 h-5 text-white" />
+        </div>
+        <h2 className="text-2xl md:text-3xl font-display font-bold">Fase de Eliminatorias</h2>
       </div>
 
       {/* Horizontal Bracket */}
@@ -150,13 +152,15 @@ export const KnockoutBracketView = ({
             const isLastRound = roundIndex === rounds.length - 1;
             
             return (
-              <div key={round} className="flex flex-col min-w-[260px]">
+              <div key={round} className="flex flex-col min-w-[280px]">
                 <h4 className={cn(
-                  "text-sm font-semibold mb-3 text-center px-4 py-2 rounded-lg",
-                  isLastRound ? "bg-gold/20 text-gold-dark" : "bg-purple-500/10 text-purple-600"
+                  "text-sm font-display font-bold mb-3 text-center px-4 py-2.5 rounded-xl shadow-sm",
+                  isLastRound 
+                    ? "bg-gradient-to-r from-gold/30 to-gold/20 text-gold-dark border border-gold/30" 
+                    : "bg-gradient-to-r from-purple-500/15 to-purple-500/5 text-purple-700 border border-purple-500/20"
                 )}>
                   {roundNames[round]}
-                  <Badge variant="outline" className="ml-2">
+                  <Badge variant="secondary" className="ml-2 text-xs">
                     {roundSeries.length}
                   </Badge>
                 </h4>
@@ -171,138 +175,138 @@ export const KnockoutBracketView = ({
                     const nextMatch = getNextPlayableMatch(s);
                     const displayInfo = getSeriesDisplayInfo(s);
                     
-                    return (
-                      <div
-                        key={s.id}
-                        className={cn(
-                          "border rounded-lg bg-card",
-                          s.winnerId && "border-green-500/50",
-                          isLastRound && s.winnerId && "border-gold ring-1 ring-gold/50"
-                        )}
-                      >
-                        {/* Team 1 */}
-                        <div className={cn(
-                          "flex items-center justify-between p-2 border-b",
-                          s.winnerId === s.team1Id && "bg-green-500/10"
-                        )}>
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            {s.team1Seed > 0 && (
-                              <span className="text-xs text-muted-foreground w-4">{s.team1Seed}</span>
-                            )}
-                            <span className={cn(
-                              "font-medium text-sm truncate",
-                              !team1 && "text-muted-foreground italic",
-                              s.winnerId === s.team1Id && "font-bold text-green-600"
-                            )}>
-                              {team1?.name || "Por definir"}
-                            </span>
-                            {s.winnerId === s.team1Id && (
-                              <Trophy className="w-3 h-3 text-gold flex-shrink-0" />
-                            )}
-                          </div>
-                          <span className={cn(
-                            "font-bold text-sm w-8 text-right",
-                            s.winnerId === s.team1Id && "text-green-600"
+                      return (
+                        <div
+                          key={s.id}
+                          className={cn(
+                            "border rounded-xl bg-card overflow-hidden shadow-sm hover:shadow-md transition-all duration-300",
+                            s.winnerId && "border-emerald-500/50 bg-emerald-500/5",
+                            isLastRound && s.winnerId && "border-gold ring-2 ring-gold/30 shadow-lg shadow-gold/10"
+                          )}
+                        >
+                          {/* Team 1 */}
+                          <div className={cn(
+                            "flex items-center justify-between px-3 py-2.5 border-b transition-colors",
+                            s.winnerId === s.team1Id && "bg-emerald-500/10"
                           )}>
-                            {s.winnerId ? s.team1Aggregate : "-"}
-                          </span>
-                        </div>
-                        
-                        {/* Team 2 */}
-                        <div className={cn(
-                          "flex items-center justify-between p-2",
-                          s.winnerId === s.team2Id && "bg-green-500/10"
-                        )}>
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            {s.team2Seed > 0 && (
-                              <span className="text-xs text-muted-foreground w-4">{s.team2Seed}</span>
-                            )}
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              {s.team1Seed > 0 && (
+                                <span className="text-xs text-muted-foreground w-4 font-medium">{s.team1Seed}</span>
+                              )}
+                              <span className={cn(
+                                "font-medium text-sm truncate",
+                                !team1 && "text-muted-foreground italic",
+                                s.winnerId === s.team1Id && "font-bold text-emerald-700"
+                              )}>
+                                {team1?.name || "Por definir"}
+                              </span>
+                              {s.winnerId === s.team1Id && (
+                                <Trophy className="w-3.5 h-3.5 text-gold flex-shrink-0" />
+                              )}
+                            </div>
                             <span className={cn(
-                              "font-medium text-sm truncate",
-                              !team2 && "text-muted-foreground italic",
-                              s.winnerId === s.team2Id && "font-bold text-green-600"
+                              "font-display font-bold text-base w-8 text-right",
+                              s.winnerId === s.team1Id && "text-emerald-700"
                             )}>
-                              {team2?.name || "Por definir"}
+                              {s.winnerId ? s.team1Aggregate : "-"}
                             </span>
-                            {s.winnerId === s.team2Id && (
-                              <Trophy className="w-3 h-3 text-gold flex-shrink-0" />
-                            )}
                           </div>
-                          <span className={cn(
-                            "font-bold text-sm w-8 text-right",
-                            s.winnerId === s.team2Id && "text-green-600"
+                          
+                          {/* Team 2 */}
+                          <div className={cn(
+                            "flex items-center justify-between px-3 py-2.5 transition-colors",
+                            s.winnerId === s.team2Id && "bg-emerald-500/10"
                           )}>
-                            {s.winnerId ? s.team2Aggregate : "-"}
-                          </span>
-                        </div>
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              {s.team2Seed > 0 && (
+                                <span className="text-xs text-muted-foreground w-4 font-medium">{s.team2Seed}</span>
+                              )}
+                              <span className={cn(
+                                "font-medium text-sm truncate",
+                                !team2 && "text-muted-foreground italic",
+                                s.winnerId === s.team2Id && "font-bold text-emerald-700"
+                              )}>
+                                {team2?.name || "Por definir"}
+                              </span>
+                              {s.winnerId === s.team2Id && (
+                                <Trophy className="w-3.5 h-3.5 text-gold flex-shrink-0" />
+                              )}
+                            </div>
+                            <span className={cn(
+                              "font-display font-bold text-base w-8 text-right",
+                              s.winnerId === s.team2Id && "text-emerald-700"
+                            )}>
+                              {s.winnerId ? s.team2Aggregate : "-"}
+                            </span>
+                          </div>
 
-                        {/* Match details / Play button */}
-                        {s.isBye ? (
-                          <div className="text-xs text-center text-muted-foreground py-2 border-t bg-muted/30">
-                            Pasa directo
-                          </div>
-                        ) : nextMatch && onPlayMatch ? (
-                          <div className="border-t">
-                            {/* Show previous leg result if exists */}
-                            {displayInfo.status === "waiting_leg2" && displayInfo.leg1Text && (
-                              <div className="text-xs text-center text-muted-foreground py-1 bg-muted/20 border-b">
-                                Ida: {displayInfo.leg1Text}
-                              </div>
-                            )}
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="w-full rounded-t-none gap-1"
-                              onClick={() => onPlayMatch(nextMatch.id, s.id)}
-                            >
-                              <Play className="w-3 h-3" />
-                              {s.leg2Id && nextMatch.id === s.leg2Id ? "Vuelta" : s.leg2Id ? "Ida" : "Jugar"}
-                            </Button>
-                          </div>
-                        ) : displayInfo.status === "complete" || displayInfo.status === "waiting_leg2" ? (
-                          <div className="text-xs text-center text-muted-foreground py-2 border-t bg-muted/30 space-y-0.5">
-                            {displayInfo.leg1Text && (
-                              <div>Ida: {displayInfo.leg1Text}</div>
-                            )}
-                            {displayInfo.leg2Text && (
-                              <div>Vuelta: {displayInfo.leg2Text}</div>
-                            )}
-                            {displayInfo.penaltiesText && (
-                              <div className="text-purple-600 font-medium">{displayInfo.penaltiesText}</div>
-                            )}
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
+                          {/* Match details / Play button */}
+                          {s.isBye ? (
+                            <div className="text-xs text-center text-muted-foreground py-2 border-t bg-muted/30 font-medium">
+                              Pasa directo
+                            </div>
+                          ) : nextMatch && onPlayMatch ? (
+                            <div className="border-t">
+                              {/* Show previous leg result if exists */}
+                              {displayInfo.status === "waiting_leg2" && displayInfo.leg1Text && (
+                                <div className="text-xs text-center text-muted-foreground py-1.5 bg-muted/20 border-b font-medium">
+                                  Ida: {displayInfo.leg1Text}
+                                </div>
+                              )}
+                              <Button 
+                                size="sm" 
+                                variant="ghost" 
+                                className="w-full rounded-none gap-1.5 h-9 hover:bg-primary/10 hover:text-primary font-medium"
+                                onClick={() => onPlayMatch(nextMatch.id, s.id)}
+                              >
+                                <Play className="w-3.5 h-3.5" />
+                                {s.leg2Id && nextMatch.id === s.leg2Id ? "Vuelta" : s.leg2Id ? "Ida" : "Jugar"}
+                              </Button>
+                            </div>
+                          ) : displayInfo.status === "complete" || displayInfo.status === "waiting_leg2" ? (
+                            <div className="text-xs text-center text-muted-foreground py-2 border-t bg-muted/30 space-y-0.5 font-medium">
+                              {displayInfo.leg1Text && (
+                                <div>Ida: {displayInfo.leg1Text}</div>
+                              )}
+                              {displayInfo.leg2Text && (
+                                <div>Vuelta: {displayInfo.leg2Text}</div>
+                              )}
+                              {displayInfo.penaltiesText && (
+                                <div className="text-purple-600 font-bold">{displayInfo.penaltiesText}</div>
+                              )}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-          
-          {/* Champion Display */}
-          <div className="flex flex-col justify-center min-w-[180px]">
-            <div className={cn(
-              "border-2 rounded-xl p-4 text-center transition-all",
-              champion 
-                ? "border-gold bg-gradient-to-br from-gold/20 to-gold/5" 
-                : "border-dashed border-muted-foreground/30"
-            )}>
-              <Trophy className={cn(
-                "w-10 h-10 mx-auto mb-2",
-                champion ? "text-gold" : "text-muted-foreground/50"
-              )} />
-              <div className="text-xs text-muted-foreground mb-1">CAMPEÓN</div>
+              );
+            })}
+            
+            {/* Champion Display */}
+            <div className="flex flex-col justify-center min-w-[200px]">
               <div className={cn(
-                "font-display text-lg",
-                champion ? "text-gold-dark font-bold" : "text-muted-foreground italic"
+                "border-2 rounded-2xl p-6 text-center transition-all duration-500",
+                champion 
+                  ? "border-gold bg-gradient-to-br from-gold/25 via-gold/15 to-gold/5 shadow-xl shadow-gold/20" 
+                  : "border-dashed border-muted-foreground/30 bg-muted/20"
               )}>
-                {champion?.name || "Por definir"}
+                <Trophy className={cn(
+                  "w-12 h-12 mx-auto mb-3 transition-all",
+                  champion ? "text-gold drop-shadow-lg" : "text-muted-foreground/40"
+                )} />
+                <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-medium">Campeón</div>
+                <div className={cn(
+                  "font-display text-xl",
+                  champion ? "text-gold-dark font-bold" : "text-muted-foreground italic"
+                )}>
+                  {champion?.name || "Por definir"}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </ScrollArea>
-    </div>
-  );
-};
+        </ScrollArea>
+      </div>
+    );
+  };
