@@ -481,9 +481,9 @@ export const CompetitionConfigDialog = ({
                 </div>
                 
                 {/* Teams list */}
-                <div className="flex-1 min-h-0 border rounded-lg overflow-hidden">
-                  <Label className="text-sm p-3 block border-b bg-background">Configurar equipos (clic en nombre para editar)</Label>
-                  <ScrollArea className="h-[300px]">
+                <div className="flex-1 min-h-0 border rounded-lg overflow-hidden flex flex-col">
+                  <Label className="text-sm p-3 block border-b bg-background flex-shrink-0">Configurar equipos (clic en nombre para editar)</Label>
+                  <ScrollArea className="flex-1 min-h-0">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3">
                       {customTeams.map((team) => (
                         <div
@@ -529,8 +529,8 @@ export const CompetitionConfigDialog = ({
                           </Select>
                         </div>
                       ))}
+                      <div className="h-6" />
                     </div>
-                    <div className="h-4" /> {/* Bottom padding for scroll */}
                   </ScrollArea>
                 </div>
               </div>
