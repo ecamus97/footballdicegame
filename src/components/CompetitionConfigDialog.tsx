@@ -11,7 +11,6 @@ import {
   getQualificationRuleName,
   isValidGroupsTeamCount,
   isValidKnockoutTeamCount,
-  isPowerOf2,
   calculateByes,
 } from "@/types/competition";
 import { Team } from "@/types/game";
@@ -49,6 +48,11 @@ import {
   AlertCircle,
   CheckCircle2,
   Edit2,
+  Sparkles,
+  Crown,
+  Swords,
+  GitBranch,
+  Medal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -66,11 +70,41 @@ interface CustomTeam {
   level: 1 | 2 | 3 | 4;
 }
 
+// Competition type info for cards
+const competitionTypeInfo: Record<CompetitionType, { icon: React.ReactNode; description: string; color: string }> = {
+  league: { 
+    icon: <Medal className="w-5 h-5" />, 
+    description: "Todos contra todos, acumulando puntos", 
+    color: "from-blue-500/20 to-blue-500/5 border-blue-500/30 hover:border-blue-500/60" 
+  },
+  league_playoffs: { 
+    icon: <GitBranch className="w-5 h-5" />, 
+    description: "Liga regular + playoffs finales", 
+    color: "from-cyan-500/20 to-cyan-500/5 border-cyan-500/30 hover:border-cyan-500/60" 
+  },
+  knockout: { 
+    icon: <Swords className="w-5 h-5" />, 
+    description: "Eliminación directa desde el inicio", 
+    color: "from-red-500/20 to-red-500/5 border-red-500/30 hover:border-red-500/60" 
+  },
+  groups_knockout: { 
+    icon: <Crown className="w-5 h-5" />, 
+    description: "Fase de grupos + eliminatorias", 
+    color: "from-purple-500/20 to-purple-500/5 border-purple-500/30 hover:border-purple-500/60" 
+  },
+  qualifying_groups_knockout: { 
+    icon: <Sparkles className="w-5 h-5" />, 
+    description: "Clasificatoria + grupos + eliminatorias", 
+    color: "from-amber-500/20 to-amber-500/5 border-amber-500/30 hover:border-amber-500/60" 
+  },
+};
+
 export const CompetitionConfigDialog = ({
   onCreateCompetition,
   teamLevels,
 }: CompetitionConfigDialogProps) => {
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("type");
   
   // Basic config
   const [name, setName] = useState("Copa Internacional 2026");
@@ -210,7 +244,6 @@ export const CompetitionConfigDialog = ({
     ];
     
     // Distribute teams evenly across pots (teamsPerPot in each)
-    // First teamsPerPot teams go to pot 1, next to pot 2, etc.
     sortedTeams.forEach((team, index) => {
       const potIndex = Math.floor(index / teamsPerPot);
       if (potIndex < 4) {
@@ -239,6 +272,17 @@ export const CompetitionConfigDialog = ({
         : team
     ));
   };
+
+  // Step indicator
+  const tabs = [
+    { id: "type", label: "Tipo", icon: Trophy },
+    { id: "teams", label: "Equipos", icon: Users },
+    { id: "phases", label: "Fases", icon: Layers },
+    { id: "pots", label: "Bombos", icon: Shuffle, disabled: !needsGroups },
+    { id: "summary", label: "Resumen", icon: Target },
+  ];
+
+  const currentTabIndex = tabs.findIndex(t => t.id === activeTab);
   
   // Handle create
   const handleCreate = () => {
@@ -299,87 +343,123 @@ export const CompetitionConfigDialog = ({
     setOpen(false);
     toast({ title: "Competencia creada", description: `${name} configurada exitosamente` });
   };
+
+  const getLevelBadgeColor = (level: 1 | 2 | 3 | 4) => {
+    switch (level) {
+      case 1: return "bg-gradient-to-r from-yellow-400/30 to-yellow-500/20 border-yellow-500/50 text-yellow-700";
+      case 2: return "bg-gradient-to-r from-blue-400/30 to-blue-500/20 border-blue-500/50 text-blue-700";
+      case 3: return "bg-gradient-to-r from-gray-400/30 to-gray-500/20 border-gray-500/50 text-gray-700";
+      case 4: return "bg-gradient-to-r from-red-400/30 to-red-500/20 border-red-500/50 text-red-700";
+    }
+  };
   
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
+        <Button className="gap-2 bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all">
           <Trophy className="w-4 h-4" />
           Nueva Competencia
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="font-display text-2xl flex items-center gap-2">
-            <Trophy className="w-6 h-6" />
-            Configurar Nueva Competencia
-          </DialogTitle>
-          <DialogDescription>
-            Configura el formato, equipos y reglas de tu competencia.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <Tabs defaultValue="type" className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="w-full grid grid-cols-5">
-            <TabsTrigger value="type" className="gap-1">
-              <Trophy className="w-4 h-4" />
-              <span className="hidden sm:inline">Tipo</span>
-            </TabsTrigger>
-            <TabsTrigger value="teams" className="gap-1">
-              <Users className="w-4 h-4" />
-              <span className="hidden sm:inline">Equipos</span>
-            </TabsTrigger>
-            <TabsTrigger value="phases" className="gap-1">
-              <Layers className="w-4 h-4" />
-              <span className="hidden sm:inline">Fases</span>
-            </TabsTrigger>
-            <TabsTrigger value="pots" className="gap-1" disabled={!needsGroups}>
-              <Shuffle className="w-4 h-4" />
-              <span className="hidden sm:inline">Bombos</span>
-            </TabsTrigger>
-            <TabsTrigger value="summary" className="gap-1">
-              <Target className="w-4 h-4" />
-              <span className="hidden sm:inline">Resumen</span>
-            </TabsTrigger>
-          </TabsList>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+        {/* Header with gradient */}
+        <div className="relative px-6 pt-6 pb-4 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/25">
+                <Trophy className="w-5 h-5 text-primary-foreground" />
+              </div>
+              Configurar Nueva Competencia
+            </DialogTitle>
+            <DialogDescription className="text-sm mt-1">
+              Configura el formato, equipos y reglas de tu competencia paso a paso.
+            </DialogDescription>
+          </DialogHeader>
           
-          <div className="flex-1 mt-4 overflow-hidden">
+          {/* Step Indicator */}
+          <div className="flex items-center justify-center gap-2 mt-4">
+            {tabs.map((tab, index) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              const isCompleted = index < currentTabIndex;
+              const isDisabled = tab.disabled;
+              
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => !isDisabled && setActiveTab(tab.id)}
+                  disabled={isDisabled}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-300",
+                    isActive && "bg-primary text-primary-foreground shadow-lg shadow-primary/25",
+                    isCompleted && !isActive && "bg-primary/15 text-primary",
+                    !isActive && !isCompleted && !isDisabled && "bg-muted/50 text-muted-foreground hover:bg-muted",
+                    isDisabled && "opacity-40 cursor-not-allowed"
+                  )}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="text-sm font-medium hidden sm:inline">{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-hidden px-6 py-4">
             {/* Type Tab */}
-            <TabsContent value="type" className="m-0 h-full overflow-y-auto pr-4">
-              <div className="space-y-4">
+            <TabsContent value="type" className="m-0 h-full overflow-y-auto">
+              <div className="space-y-6">
                 <div className="space-y-2">
-                  <Label>Nombre de la Competencia</Label>
+                  <Label className="text-sm font-semibold">Nombre de la Competencia</Label>
                   <Input 
                     value={name} 
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Ej: Copa del Mundo 2026"
+                    className="text-lg font-medium h-12"
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label>Tipo de Competencia</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {(["league", "league_playoffs", "knockout", "groups_knockout", "qualifying_groups_knockout"] as CompetitionType[]).map(type => (
-                      <button
-                        key={type}
-                        onClick={() => setCompetitionType(type)}
-                        className={cn(
-                          "p-4 rounded-lg border text-left transition-all",
-                          competitionType === type 
-                            ? "border-primary bg-primary/10" 
-                            : "border-border hover:border-primary/50"
-                        )}
-                      >
-                        <div className="font-medium">{getCompetitionTypeName(type)}</div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {type === "league" && "Todos contra todos"}
-                          {type === "league_playoffs" && "Liga + eliminatorias finales"}
-                          {type === "knockout" && "Eliminación directa desde el inicio"}
-                          {type === "groups_knockout" && "Fase de grupos + eliminatorias"}
-                          {type === "qualifying_groups_knockout" && "Clasificatoria + grupos + eliminatorias"}
-                        </div>
-                      </button>
-                    ))}
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">Tipo de Competencia</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {(Object.keys(competitionTypeInfo) as CompetitionType[]).map(type => {
+                      const info = competitionTypeInfo[type];
+                      const isSelected = competitionType === type;
+                      
+                      return (
+                        <button
+                          key={type}
+                          onClick={() => setCompetitionType(type)}
+                          className={cn(
+                            "relative p-4 rounded-2xl border-2 text-left transition-all duration-300 group",
+                            "bg-gradient-to-br",
+                            info.color,
+                            isSelected && "ring-2 ring-primary ring-offset-2 border-primary"
+                          )}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={cn(
+                              "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                              isSelected ? "bg-primary text-primary-foreground" : "bg-background/80"
+                            )}>
+                              {info.icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-sm">{getCompetitionTypeName(type)}</div>
+                              <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                                {info.description}
+                              </div>
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <div className="absolute top-2 right-2">
+                              <CheckCircle2 className="w-5 h-5 text-primary" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -389,14 +469,14 @@ export const CompetitionConfigDialog = ({
             <TabsContent value="teams" className="m-0 h-full overflow-hidden flex flex-col">
               <div className="space-y-4 flex-1 flex flex-col min-h-0">
                 {/* Team count selector */}
-                <div className="flex items-center gap-4 flex-shrink-0">
-                  <div className="flex-1 space-y-2">
-                    <Label>Cantidad de equipos participantes</Label>
+                <div className="flex flex-wrap items-end gap-4">
+                  <div className="flex-1 min-w-[200px] space-y-2">
+                    <Label className="text-sm font-semibold">Cantidad de equipos</Label>
                     <Select
                       value={String(teamCount)}
                       onValueChange={(v) => setTeamCount(parseInt(v))}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="h-11">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -408,44 +488,60 @@ export const CompetitionConfigDialog = ({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex items-center gap-2">
+                  
+                  <div className={cn(
+                    "flex items-center gap-2 px-4 py-2.5 rounded-xl",
+                    validation.valid 
+                      ? "bg-emerald-500/10 text-emerald-700 border border-emerald-500/30" 
+                      : "bg-destructive/10 text-destructive border border-destructive/30"
+                  )}>
                     {validation.valid ? (
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                      <CheckCircle2 className="w-4 h-4" />
                     ) : (
-                      <AlertCircle className="w-4 h-4 text-destructive" />
+                      <AlertCircle className="w-4 h-4" />
                     )}
-                    <span className={cn(
-                      "text-sm",
-                      validation.valid ? "text-green-600" : "text-destructive"
-                    )}>
-                      {validation.message}
-                    </span>
+                    <span className="text-sm font-medium">{validation.message}</span>
                   </div>
                 </div>
                 
                 {needsGroups && numTeams > 0 && (
-                  <div className="p-3 bg-muted rounded-lg text-sm flex-shrink-0">
-                    <strong>{numGroups}</strong> grupos de <strong>4</strong> equipos
+                  <div className="p-3 bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl border border-primary/20">
+                    <div className="flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-primary" />
+                      <span className="text-sm">
+                        <strong>{numGroups}</strong> grupos de <strong>4</strong> equipos cada uno
+                      </span>
+                    </div>
                   </div>
                 )}
                 
                 {competitionType === "knockout" && byesNeeded > 0 && (
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm text-amber-600 flex-shrink-0">
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-sm text-amber-700">
                     <strong>{byesNeeded}</strong> equipos pasarán directamente a la siguiente ronda (byes)
                   </div>
                 )}
                 
-                
                 {/* Teams list */}
-                <div className="flex-1 min-h-0 border rounded-lg overflow-hidden flex flex-col">
-                  <Label className="text-sm p-3 block border-b bg-background flex-shrink-0">Configurar equipos (clic en nombre para editar)</Label>
+                <div className="flex-1 min-h-0 border-2 rounded-2xl overflow-hidden flex flex-col bg-card">
+                  <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
+                    <Label className="text-sm font-semibold">Configurar equipos</Label>
+                    <span className="text-xs text-muted-foreground">Clic en nombre para editar</span>
+                  </div>
                   <ScrollArea className="flex-1 min-h-0">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3">
-                      {customTeams.map((team) => (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-4">
+                      {customTeams.map((team, index) => (
                         <div
                           key={team.id}
-                          className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30"
+                          className={cn(
+                            "flex items-center gap-3 p-3 rounded-xl border-2 transition-all",
+                            "bg-gradient-to-r from-background to-muted/30",
+                            "hover:border-primary/30 hover:shadow-sm"
+                          )}
                         >
+                          <span className="w-6 h-6 rounded-lg bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
+                            {index + 1}
+                          </span>
+                          
                           {editingTeamId === team.id ? (
                             <Input
                               autoFocus
@@ -460,53 +556,59 @@ export const CompetitionConfigDialog = ({
                           ) : (
                             <button
                               onClick={() => setEditingTeamId(team.id)}
-                              className="flex-1 text-left text-sm font-medium hover:text-primary flex items-center gap-1"
+                              className="flex-1 text-left text-sm font-medium hover:text-primary flex items-center gap-1.5 group"
                             >
-                              {team.name}
-                              <Edit2 className="w-3 h-3 opacity-50" />
+                              <span className="truncate">{team.name}</span>
+                              <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity" />
                             </button>
                           )}
+                          
                           <Select
                             value={String(team.level)}
                             onValueChange={(v) => updateTeamLevel(team.id, parseInt(v) as 1 | 2 | 3 | 4)}
                           >
                             <SelectTrigger className={cn(
-                              "w-20 h-7 text-xs",
-                              getLevelColor(team.level)
+                              "w-24 h-8 text-xs font-medium border-2",
+                              getLevelBadgeColor(team.level)
                             )}>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="1">N1 Élite</SelectItem>
-                              <SelectItem value="2">N2 Fuerte</SelectItem>
-                              <SelectItem value="3">N3 Medio</SelectItem>
-                              <SelectItem value="4">N4 Débil</SelectItem>
+                              <SelectItem value="1">⭐ N1 Élite</SelectItem>
+                              <SelectItem value="2">🔵 N2 Fuerte</SelectItem>
+                              <SelectItem value="3">⚪ N3 Medio</SelectItem>
+                              <SelectItem value="4">🔴 N4 Débil</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
                       ))}
-                      <div className="h-6" />
                     </div>
+                    <div className="h-4" />
                   </ScrollArea>
                 </div>
               </div>
             </TabsContent>
             
             {/* Phases Tab */}
-            <TabsContent value="phases" className="m-0 h-full overflow-y-auto pr-4">
+            <TabsContent value="phases" className="m-0 h-full overflow-y-auto">
               <div className="space-y-6">
                 {/* Qualifying Config */}
                 {needsQualifying && (
-                  <div className="space-y-3 p-4 bg-orange-500/10 rounded-lg border border-orange-500/20">
-                    <Label className="text-base font-semibold">Fase Previa (Clasificatoria)</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Rondas previas</Label>
+                  <div className="space-y-4 p-5 bg-gradient-to-br from-amber-500/15 to-amber-500/5 rounded-2xl border-2 border-amber-500/30">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                        <Sparkles className="w-4 h-4 text-amber-600" />
+                      </div>
+                      <Label className="text-base font-bold">Fase Previa (Clasificatoria)</Label>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground">Rondas previas</Label>
                         <Select
                           value={String(qualifyingRounds)}
                           onValueChange={(v) => setQualifyingRounds(parseInt(v))}
                         >
-                          <SelectTrigger className="h-8">
+                          <SelectTrigger className="h-10">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -516,13 +618,13 @@ export const CompetitionConfigDialog = ({
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Equipos en fase previa</Label>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground">Equipos en fase previa</Label>
                         <Select
                           value={String(qualifyingTeams)}
                           onValueChange={(v) => setQualifyingTeams(parseInt(v))}
                         >
-                          <SelectTrigger className="h-8">
+                          <SelectTrigger className="h-10">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -532,13 +634,13 @@ export const CompetitionConfigDialog = ({
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Formato partidos</Label>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground">Formato partidos</Label>
                         <Select
                           value={qualifyingFormat}
                           onValueChange={(v) => setQualifyingFormat(v as MatchFormat)}
                         >
-                          <SelectTrigger className="h-8">
+                          <SelectTrigger className="h-10">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -548,13 +650,13 @@ export const CompetitionConfigDialog = ({
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Directo a grupos</Label>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground">Directo a grupos</Label>
                         <Select
                           value={String(directToGroups)}
                           onValueChange={(v) => setDirectToGroups(parseInt(v))}
                         >
-                          <SelectTrigger className="h-8">
+                          <SelectTrigger className="h-10">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -570,16 +672,21 @@ export const CompetitionConfigDialog = ({
                 
                 {/* Groups Config */}
                 {needsGroups && (
-                  <div className="space-y-3 p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                    <Label className="text-base font-semibold">Fase de Grupos</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Formato partidos</Label>
+                  <div className="space-y-4 p-5 bg-gradient-to-br from-blue-500/15 to-blue-500/5 rounded-2xl border-2 border-blue-500/30">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                        <Layers className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <Label className="text-base font-bold">Fase de Grupos</Label>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground">Formato partidos</Label>
                         <Select
                           value={groupMatchFormat}
                           onValueChange={(v) => setGroupMatchFormat(v as MatchFormat)}
                         >
-                          <SelectTrigger className="h-8">
+                          <SelectTrigger className="h-10">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -589,13 +696,13 @@ export const CompetitionConfigDialog = ({
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Clasificación</Label>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground">Clasificación</Label>
                         <Select
                           value={qualificationRule}
                           onValueChange={(v) => setQualificationRule(v as QualificationRule)}
                         >
-                          <SelectTrigger className="h-8">
+                          <SelectTrigger className="h-10">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -606,13 +713,13 @@ export const CompetitionConfigDialog = ({
                         </Select>
                       </div>
                       {qualificationRule === "first_second_best_thirds" && (
-                        <div className="space-y-1 col-span-2">
-                          <Label className="text-xs">Mejores terceros que clasifican</Label>
+                        <div className="space-y-1.5 col-span-2">
+                          <Label className="text-xs font-medium text-muted-foreground">Mejores terceros que clasifican</Label>
                           <Select
                             value={String(bestThirdsCount)}
                             onValueChange={(v) => setBestThirdsCount(parseInt(v))}
                           >
-                            <SelectTrigger className="h-8">
+                            <SelectTrigger className="h-10">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -629,16 +736,21 @@ export const CompetitionConfigDialog = ({
                 
                 {/* Knockout Config */}
                 {needsKnockout && (
-                  <div className="space-y-3 p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                    <Label className="text-base font-semibold">Eliminatorias</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Formato partidos</Label>
+                  <div className="space-y-4 p-5 bg-gradient-to-br from-purple-500/15 to-purple-500/5 rounded-2xl border-2 border-purple-500/30">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                        <Swords className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <Label className="text-base font-bold">Eliminatorias</Label>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground">Formato partidos</Label>
                         <Select
                           value={knockoutMatchFormat}
                           onValueChange={(v) => setKnockoutMatchFormat(v as MatchFormat)}
                         >
-                          <SelectTrigger className="h-8">
+                          <SelectTrigger className="h-10">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -648,13 +760,13 @@ export const CompetitionConfigDialog = ({
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Formato final</Label>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground">Formato final</Label>
                         <Select
                           value={finalFormat}
                           onValueChange={(v) => setFinalFormat(v as MatchFormat)}
                         >
-                          <SelectTrigger className="h-8">
+                          <SelectTrigger className="h-10">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -665,9 +777,9 @@ export const CompetitionConfigDialog = ({
                         </Select>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center justify-between p-3 bg-background/50 rounded-xl">
                       <div>
-                        <Label className="text-sm">Cruces por posición</Label>
+                        <Label className="text-sm font-medium">Cruces por posición</Label>
                         <p className="text-xs text-muted-foreground">1° vs último de grupo opuesto</p>
                       </div>
                       <SwitchComponent
@@ -683,40 +795,44 @@ export const CompetitionConfigDialog = ({
             {/* Pots Tab */}
             <TabsContent value="pots" className="m-0 h-full flex flex-col">
               <div className="space-y-4 flex-1 flex flex-col min-h-0">
-                <div className="flex items-center justify-between">
-                  <Label className="text-base">Configuración de Bombos</Label>
-                  <Button variant="outline" size="sm" onClick={autoAssignPots}>
-                    <Shuffle className="w-4 h-4 mr-1" />
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Shuffle className="w-4 h-4 text-primary" />
+                    </div>
+                    <Label className="text-base font-bold">Configuración de Bombos</Label>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={autoAssignPots} className="gap-2">
+                    <Sparkles className="w-4 h-4" />
                     Auto-asignar por nivel
                   </Button>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label className="text-xs">Método de sorteo</Label>
-                  <div className="flex gap-2">
-                    <Button
-                      variant={drawMethod === "automatic" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setDrawMethod("automatic")}
-                    >
-                      Automático
-                    </Button>
-                    <Button
-                      variant={drawMethod === "visual" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setDrawMethod("visual")}
-                    >
-                      Visual paso a paso
-                    </Button>
-                  </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant={drawMethod === "automatic" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setDrawMethod("automatic")}
+                    className="flex-1"
+                  >
+                    Sorteo Automático
+                  </Button>
+                  <Button
+                    variant={drawMethod === "visual" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setDrawMethod("visual")}
+                    className="flex-1"
+                  >
+                    Sorteo Visual
+                  </Button>
                 </div>
                 
                 {/* Pot Validation Message */}
                 <div className={cn(
-                  "p-2 rounded-lg flex items-center gap-2 text-sm",
+                  "p-3 rounded-xl flex items-center gap-2 text-sm font-medium",
                   potValidation.valid 
-                    ? "bg-green-500/10 text-green-600"
-                    : "bg-destructive/10 text-destructive"
+                    ? "bg-emerald-500/10 text-emerald-700 border border-emerald-500/30"
+                    : "bg-destructive/10 text-destructive border border-destructive/30"
                 )}>
                   {potValidation.valid ? (
                     <CheckCircle2 className="w-4 h-4" />
@@ -727,58 +843,67 @@ export const CompetitionConfigDialog = ({
                 </div>
                 
                 {/* Pots and unassigned teams in scrollable container */}
-                <div className="flex-1 min-h-0 border rounded-lg overflow-hidden">
-                  <ScrollArea className="h-[320px]">
-                    <div className="space-y-3 p-3 pb-6">
+                <div className="flex-1 min-h-0 border-2 rounded-2xl overflow-hidden bg-card">
+                  <ScrollArea className="h-full">
+                    <div className="space-y-4 p-4">
                       {/* Pots */}
-                      {pots.map((pot, potIndex) => {
-                        const expectedCount = numGroups;
-                        const isCorrectCount = pot.teamIds.length === expectedCount;
-                        return (
-                          <div key={pot.id} className={cn(
-                            "p-3 rounded-lg space-y-2",
-                            isCorrectCount ? "bg-muted/50" : "bg-amber-500/10 border border-amber-500/20"
-                          )}>
-                            <div className="flex items-center justify-between">
-                              <Label className="font-medium">{pot.name}</Label>
-                              <Badge variant={isCorrectCount ? "outline" : "destructive"}>
-                                {pot.teamIds.length}/{expectedCount} equipos
-                              </Badge>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {pots.map((pot, potIndex) => {
+                          const expectedCount = numGroups;
+                          const isCorrectCount = pot.teamIds.length === expectedCount;
+                          const potColors = [
+                            "from-yellow-500/20 to-yellow-500/5 border-yellow-500/40",
+                            "from-blue-500/20 to-blue-500/5 border-blue-500/40",
+                            "from-gray-500/20 to-gray-500/5 border-gray-500/40",
+                            "from-red-500/20 to-red-500/5 border-red-500/40",
+                          ];
+                          
+                          return (
+                            <div key={pot.id} className={cn(
+                              "p-4 rounded-xl space-y-3 border-2 bg-gradient-to-br",
+                              isCorrectCount ? potColors[potIndex] : "border-amber-500 bg-amber-500/10"
+                            )}>
+                              <div className="flex items-center justify-between">
+                                <Label className="font-bold">{pot.name}</Label>
+                                <Badge variant={isCorrectCount ? "secondary" : "destructive"} className="font-mono">
+                                  {pot.teamIds.length}/{expectedCount}
+                                </Badge>
+                              </div>
+                              <div className="flex flex-wrap gap-1.5 min-h-[32px]">
+                                {pot.teamIds.length === 0 ? (
+                                  <span className="text-xs text-muted-foreground italic">Sin equipos</span>
+                                ) : (
+                                  pot.teamIds.map(teamId => {
+                                    const team = customTeams.find(t => t.id === teamId);
+                                    return (
+                                      <Badge 
+                                        key={teamId} 
+                                        variant="secondary"
+                                        className="cursor-pointer hover:bg-destructive/20 text-xs group transition-colors"
+                                        onClick={() => {
+                                          setPots(prev => prev.map((p, i) => 
+                                            i === potIndex 
+                                              ? { ...p, teamIds: p.teamIds.filter(id => id !== teamId) }
+                                              : p
+                                          ));
+                                        }}
+                                      >
+                                        {team?.name || teamId}
+                                        <Trash2 className="w-3 h-3 ml-1 opacity-50 group-hover:opacity-100" />
+                                      </Badge>
+                                    );
+                                  })
+                                )}
+                              </div>
                             </div>
-                            <div className="flex flex-wrap gap-1">
-                              {pot.teamIds.length === 0 ? (
-                                <span className="text-xs text-muted-foreground">Sin equipos asignados</span>
-                              ) : (
-                              pot.teamIds.map(teamId => {
-                                  const team = customTeams.find(t => t.id === teamId);
-                                  return (
-                                    <Badge 
-                                      key={teamId} 
-                                      variant="secondary"
-                                      className="cursor-pointer hover:bg-destructive/20 text-xs"
-                                      onClick={() => {
-                                        setPots(prev => prev.map((p, i) => 
-                                          i === potIndex 
-                                            ? { ...p, teamIds: p.teamIds.filter(id => id !== teamId) }
-                                            : p
-                                        ));
-                                      }}
-                                    >
-                                      {team?.name || teamId}
-                                      <Trash2 className="w-3 h-3 ml-1" />
-                                    </Badge>
-                                  );
-                                })
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                       
                       {/* Unassigned teams */}
-                      <div className="p-3 border rounded-lg space-y-2">
-                        <Label className="text-sm font-medium">Equipos sin asignar</Label>
-                        <div className="flex flex-wrap gap-1">
+                      <div className="p-4 border-2 border-dashed rounded-xl space-y-3">
+                        <Label className="text-sm font-bold">Equipos sin asignar</Label>
+                        <div className="flex flex-wrap gap-2">
                           {customTeams
                             .filter(team => !pots.some(pot => pot.teamIds.includes(team.id)))
                             .map(team => (
@@ -792,7 +917,7 @@ export const CompetitionConfigDialog = ({
                                   ));
                                 }}
                               >
-                                <SelectTrigger className="w-auto h-6 text-xs max-w-[140px]">
+                                <SelectTrigger className="w-auto h-8 text-xs max-w-[160px] bg-background">
                                   <span className="truncate">{team.name}</span>
                                 </SelectTrigger>
                                 <SelectContent>
@@ -805,7 +930,10 @@ export const CompetitionConfigDialog = ({
                               </Select>
                             ))}
                           {customTeams.filter(team => !pots.some(pot => pot.teamIds.includes(team.id))).length === 0 && (
-                            <span className="text-xs text-muted-foreground">Todos los equipos están asignados</span>
+                            <div className="flex items-center gap-2 text-sm text-emerald-600">
+                              <CheckCircle2 className="w-4 h-4" />
+                              Todos los equipos están asignados
+                            </div>
                           )}
                         </div>
                       </div>
@@ -816,74 +944,84 @@ export const CompetitionConfigDialog = ({
             </TabsContent>
             
             {/* Summary Tab */}
-            <TabsContent value="summary" className="m-0 h-full overflow-y-auto pr-4">
-              <div className="space-y-4">
-                <div className="p-4 bg-muted rounded-lg space-y-3">
-                  <h3 className="font-display text-lg">{name}</h3>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Tipo:</span>{" "}
-                      <span className="font-medium">{getCompetitionTypeName(competitionType)}</span>
+            <TabsContent value="summary" className="m-0 h-full overflow-y-auto">
+              <div className="space-y-6">
+                <div className="p-6 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent rounded-2xl border-2 border-primary/20 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/25">
+                      <Trophy className="w-6 h-6 text-primary-foreground" />
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Equipos:</span>{" "}
-                      <span className="font-medium">{numTeams}</span>
+                      <h3 className="font-display text-2xl">{name}</h3>
+                      <p className="text-sm text-muted-foreground">{getCompetitionTypeName(competitionType)}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div className="p-3 bg-background/50 rounded-xl">
+                      <div className="text-xs text-muted-foreground">Equipos</div>
+                      <div className="font-display text-xl">{numTeams}</div>
                     </div>
                     {needsGroups && (
-                      <>
-                        <div>
-                          <span className="text-muted-foreground">Grupos:</span>{" "}
-                          <span className="font-medium">{numGroups} de 4</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Clasifican:</span>{" "}
-                          <span className="font-medium">{getQualificationRuleName(qualificationRule)}</span>
-                        </div>
-                      </>
+                      <div className="p-3 bg-background/50 rounded-xl">
+                        <div className="text-xs text-muted-foreground">Grupos</div>
+                        <div className="font-display text-xl">{numGroups}</div>
+                      </div>
                     )}
-                    <div>
-                      <span className="text-muted-foreground">Eliminatorias:</span>{" "}
-                      <span className="font-medium">{getMatchFormatName(knockoutMatchFormat)}</span>
+                    {needsGroups && (
+                      <div className="p-3 bg-background/50 rounded-xl">
+                        <div className="text-xs text-muted-foreground">Clasifican</div>
+                        <div className="text-sm font-medium">{getQualificationRuleName(qualificationRule)}</div>
+                      </div>
+                    )}
+                    <div className="p-3 bg-background/50 rounded-xl">
+                      <div className="text-xs text-muted-foreground">Eliminatorias</div>
+                      <div className="text-sm font-medium">{getMatchFormatName(knockoutMatchFormat)}</div>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Final:</span>{" "}
-                      <span className="font-medium">{getMatchFormatName(finalFormat)}</span>
+                    <div className="p-3 bg-background/50 rounded-xl">
+                      <div className="text-xs text-muted-foreground">Final</div>
+                      <div className="text-sm font-medium">{getMatchFormatName(finalFormat)}</div>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Sorteo:</span>{" "}
-                      <span className="font-medium">{drawMethod === "visual" ? "Visual" : "Automático"}</span>
+                    <div className="p-3 bg-background/50 rounded-xl">
+                      <div className="text-xs text-muted-foreground">Sorteo</div>
+                      <div className="text-sm font-medium">{drawMethod === "visual" ? "Visual" : "Automático"}</div>
                     </div>
                   </div>
                 </div>
                 
                 <div className={cn(
-                  "p-3 rounded-lg flex items-center gap-2",
+                  "p-4 rounded-xl flex items-center gap-3",
                   validation.valid && potValidation.valid
-                    ? "bg-green-500/10 border border-green-500/20 text-green-600"
-                    : "bg-destructive/10 border border-destructive/20 text-destructive"
+                    ? "bg-emerald-500/10 border-2 border-emerald-500/30 text-emerald-700"
+                    : "bg-destructive/10 border-2 border-destructive/30 text-destructive"
                 )}>
                   {validation.valid && potValidation.valid ? (
-                    <CheckCircle2 className="w-4 h-4" />
+                    <CheckCircle2 className="w-5 h-5" />
                   ) : (
-                    <AlertCircle className="w-4 h-4" />
+                    <AlertCircle className="w-5 h-5" />
                   )}
-                  <span className="text-sm font-medium">
-                    {!validation.valid ? validation.message : !potValidation.valid ? potValidation.message : "Configuración válida"}
-                  </span>
+                  <div>
+                    <div className="font-semibold">
+                      {!validation.valid ? "Error en configuración" : !potValidation.valid ? "Error en bombos" : "¡Todo listo!"}
+                    </div>
+                    <div className="text-sm opacity-80">
+                      {!validation.valid ? validation.message : !potValidation.valid ? potValidation.message : "La configuración está completa y lista para crear"}
+                    </div>
+                  </div>
                 </div>
               </div>
             </TabsContent>
           </div>
         </Tabs>
         
-        <DialogFooter className="flex-shrink-0 gap-2 sm:gap-0 mt-4">
+        <DialogFooter className="flex-shrink-0 gap-2 px-6 py-4 border-t bg-muted/30">
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancelar
           </Button>
           <Button 
             onClick={handleCreate} 
             disabled={!validation.valid || (needsGroups && !potValidation.valid)}
-            className="gap-2"
+            className="gap-2 bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/20"
           >
             <Trophy className="w-4 h-4" />
             Crear Competencia
