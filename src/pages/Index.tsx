@@ -8,7 +8,7 @@ import { PlayoffMatchSimulator } from "@/components/PlayoffMatchSimulator";
 import { PlayoffBracket } from "@/components/PlayoffBracket";
 import { Match, PlayoffMatch } from "@/types/game";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Trophy, Crown } from "lucide-react";
+import { Calendar, Trophy, Crown, BarChart3 } from "lucide-react";
 
 const Index = () => {
   const { 
@@ -67,7 +67,7 @@ const Index = () => {
   const isSingleLeg = tournamentConfig.playoffsFormat === "single";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <Header 
         onReset={resetTournament}
         teams={teams}
@@ -87,20 +87,41 @@ const Index = () => {
         totalMatches={totalMatches}
       />
       
-      {/* Progress Bar */}
-      <div className="bg-muted border-b">
-        <div className="container mx-auto px-4 py-3">
+      {/* Enhanced Progress Bar */}
+      <div className="bg-card/50 backdrop-blur-sm border-b sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-muted-foreground">
-              {regularSeasonComplete ? "¡Temporada Regular Completada!" : "Progreso del Torneo"}
-            </span>
-            <span className="font-medium">{playedMatches} / {totalMatches} partidos</span>
+            <div className="flex items-center gap-3">
+              {regularSeasonComplete ? (
+                <div className="flex items-center gap-2 text-gold font-medium">
+                  <Trophy className="w-4 h-4" />
+                  <span>¡Temporada Regular Completada!</span>
+                </div>
+              ) : (
+                <span className="text-muted-foreground font-medium">Progreso del Torneo</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">{playedMatches}</span>
+              <span className="text-muted-foreground/50">/</span>
+              <span className="font-semibold">{totalMatches}</span>
+              <span className="text-xs text-muted-foreground">partidos</span>
+            </div>
           </div>
-          <div className="h-2 bg-border rounded-full overflow-hidden">
+          <div className="h-2.5 bg-muted rounded-full overflow-hidden shadow-inner">
             <div 
-              className={`h-full transition-all duration-500 rounded-full ${regularSeasonComplete ? 'bg-gold' : 'bg-primary'}`}
+              className={`h-full transition-all duration-700 ease-out rounded-full ${
+                regularSeasonComplete 
+                  ? 'bg-gradient-to-r from-gold to-gold/80' 
+                  : 'bg-gradient-to-r from-primary to-primary/80'
+              }`}
               style={{ width: `${progress}%` }}
             />
+          </div>
+          <div className="flex justify-between mt-1.5 text-xs text-muted-foreground">
+            <span>0%</span>
+            <span className="font-medium text-primary">{progress}%</span>
+            <span>100%</span>
           </div>
         </div>
       </div>
