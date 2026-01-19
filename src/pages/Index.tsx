@@ -40,9 +40,6 @@ const Index = () => {
     resetTeamNames,
     saveGame,
     loadGame,
-    deleteSavedGame,
-    hasSavedGame,
-    getSavedGameInfo,
   } = useGameState();
   
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -86,9 +83,8 @@ const Index = () => {
         hasPlayedMatches={hasPlayedMatches}
         onSave={saveGame}
         onLoad={loadGame}
-        onDeleteSave={deleteSavedGame}
-        hasSavedGame={hasSavedGame}
-        getSavedGameInfo={getSavedGameInfo}
+        playedMatches={playedMatches}
+        totalMatches={totalMatches}
       />
       
       {/* Progress Bar */}

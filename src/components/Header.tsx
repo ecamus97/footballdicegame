@@ -36,11 +36,10 @@ interface HeaderProps {
   onResetNames: () => void;
   onApplyChanges: (newConfig?: TournamentConfigType) => void;
   hasPlayedMatches: boolean;
-  onSave: () => boolean;
-  onLoad: () => boolean;
-  onDeleteSave: () => void;
-  hasSavedGame: boolean;
-  getSavedGameInfo: () => { savedAt: Date; playedMatches: number; totalMatches: number; tournamentName?: string } | null;
+  onSave: () => any;
+  onLoad: (data: any) => boolean;
+  playedMatches: number;
+  totalMatches: number;
 }
 
 export const Header = ({ 
@@ -58,9 +57,8 @@ export const Header = ({
   hasPlayedMatches,
   onSave,
   onLoad,
-  onDeleteSave,
-  hasSavedGame,
-  getSavedGameInfo,
+  playedMatches,
+  totalMatches,
 }: HeaderProps) => {
   return (
     <header className="bg-primary text-primary-foreground">
@@ -152,9 +150,10 @@ export const Header = ({
             <SaveLoadGame
               onSave={onSave}
               onLoad={onLoad}
-              onDelete={onDeleteSave}
-              hasSavedGame={hasSavedGame}
-              getSavedGameInfo={getSavedGameInfo}
+              currentTournamentName={tournamentConfig.name}
+              currentPlayedMatches={playedMatches}
+              currentTotalMatches={totalMatches}
+              hasPlayoffs={tournamentConfig.playoffsEnabled}
             />
             
             <AlertDialog>

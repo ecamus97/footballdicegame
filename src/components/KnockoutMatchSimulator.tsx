@@ -78,11 +78,23 @@ export const KnockoutMatchSimulator = ({
   const isStrongerTeam1 = team1.level < team2.level;
 
   // Calculate aggregate if second leg
+  // CRITICAL: Map aggregate goals by TEAM ID, not by position
+  // series.team1Aggregate = total goals scored by series.team1Id
+  // series.team2Aggregate = total goals scored by series.team2Id
+  // We need to find which match team (match.team1Id/team2Id) corresponds to which series team
   let matchTeam1PreviousGoals = 0;
   let matchTeam2PreviousGoals = 0;
   if (isSecondLeg) {
-    matchTeam1PreviousGoals = series.team2Aggregate || 0;
-    matchTeam2PreviousGoals = series.team1Aggregate || 0;
+    // Map by team ID to get correct previous goals
+    if (match.team1Id === series.team1Id) {
+      // match.team1 is series.team1, so their previous goals are series.team1Aggregate
+      matchTeam1PreviousGoals = series.team1Aggregate || 0;
+      matchTeam2PreviousGoals = series.team2Aggregate || 0;
+    } else {
+      // match.team1 is series.team2, so their previous goals are series.team2Aggregate
+      matchTeam1PreviousGoals = series.team2Aggregate || 0;
+      matchTeam2PreviousGoals = series.team1Aggregate || 0;
+    }
   }
 
   const rollDie = (): number => Math.floor(Math.random() * 6) + 1;
