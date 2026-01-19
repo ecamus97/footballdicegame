@@ -171,7 +171,6 @@ export const useGameState = () => {
   const [standings, setStandings] = useState<Map<string, TeamStanding>>(() => new Map());
   const [playoffMatches, setPlayoffMatches] = useState<PlayoffMatch[]>([]);
   const [playoffSeries, setPlayoffSeries] = useState<PlayoffSeries[]>([]);
-  const [hasSavedGame, setHasSavedGame] = useState(false);
 
   // Get participating teams with current levels and names
   const teams = useMemo(() => {
@@ -202,13 +201,6 @@ export const useGameState = () => {
       setStandings(initializeStandings(teams));
     }
   }, []);
-
-  // Check for saved game on mount
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    setHasSavedGame(!!saved);
-  }, []);
-
   // Get team by ID with current level and name
   const getTeamById = useCallback((id: string | null): Team | undefined => {
     if (!id) return undefined;
@@ -943,8 +935,8 @@ export const useGameState = () => {
     setTeamNames(getDefaultTeamNames());
   }, []);
 
-  // Save game to localStorage
-  const saveGame = useCallback(() => {
+  // Save game - returns serializable state object
+  const saveGame = useCallback((): any => {
     const state: SavedGameState = {
       matches,
       standings,
@@ -962,45 +954,40 @@ export const useGameState = () => {
       standings: Array.from(standings.entries()),
     };
     
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
-    setHasSavedGame(true);
-    return true;
+    return serializable;
   }, [matches, standings, teamLevels, teamNames, tournamentConfig, playoffMatches, playoffSeries]);
 
-  // Load game from localStorage
-  const loadGame = useCallback(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return false;
+  // Load game from data object
+  const loadGame = useCallback((data: any): boolean => {
+    if (!data) return false;
     
     try {
-      const parsed = JSON.parse(saved);
-      
       // Restore matches
-      setMatches(parsed.matches);
+      setMatches(data.matches);
       
       // Restore standings from array to Map
-      const standingsMap = new Map<string, TeamStanding>(parsed.standings);
+      const standingsMap = new Map<string, TeamStanding>(data.standings);
       setStandings(standingsMap);
       
       // Restore team levels
-      setTeamLevels(parsed.teamLevels);
+      setTeamLevels(data.teamLevels);
 
       // Restore team names (with fallback for old saves)
-      if (parsed.teamNames) {
-        setTeamNames(parsed.teamNames);
+      if (data.teamNames) {
+        setTeamNames(data.teamNames);
       }
       
       // Restore tournament config (with fallback for old saves)
-      if (parsed.tournamentConfig) {
-        setTournamentConfig(parsed.tournamentConfig);
+      if (data.tournamentConfig) {
+        setTournamentConfig(data.tournamentConfig);
       }
       
       // Restore playoff data (with fallback for old saves)
-      if (parsed.playoffMatches) {
-        setPlayoffMatches(parsed.playoffMatches);
+      if (data.playoffMatches) {
+        setPlayoffMatches(data.playoffMatches);
       }
-      if (parsed.playoffSeries) {
-        setPlayoffSeries(parsed.playoffSeries);
+      if (data.playoffSeries) {
+        setPlayoffSeries(data.playoffSeries);
       }
       
       return true;
@@ -1010,30 +997,6 @@ export const useGameState = () => {
     }
   }, []);
 
-  // Delete saved game
-  const deleteSavedGame = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    setHasSavedGame(false);
-  }, []);
-
-  // Get saved game info
-  const getSavedGameInfo = useCallback(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return null;
-    
-    try {
-      const parsed = JSON.parse(saved);
-      const playedMatches = parsed.matches.filter((m: Match) => m.played).length;
-      return {
-        savedAt: new Date(parsed.savedAt),
-        playedMatches,
-        totalMatches: parsed.matches.length,
-        tournamentName: parsed.tournamentConfig?.name || "Campeonato Chileno 2026",
-      };
-    } catch {
-      return null;
-    }
-  }, []);
   
   return {
     matches,
@@ -1066,8 +1029,5 @@ export const useGameState = () => {
     resetTeamNames,
     saveGame,
     loadGame,
-    deleteSavedGame,
-    hasSavedGame,
-    getSavedGameInfo,
   };
 };
