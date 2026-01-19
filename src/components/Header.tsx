@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { RotateCcw, Trophy, Info, Globe } from "lucide-react";
+import { RotateCcw, Trophy, Info, Home, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   AlertDialog,
@@ -61,30 +61,46 @@ export const Header = ({
   totalMatches,
 }: HeaderProps) => {
   return (
-    <header className="bg-primary text-primary-foreground">
-      <div className="container mx-auto px-4 py-6">
+    <header className="bg-gradient-to-r from-primary via-primary to-primary/90 text-primary-foreground shadow-lg">
+      <div className="container mx-auto px-4 py-5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gold rounded-lg flex items-center justify-center">
-              <Trophy className="w-7 h-7 text-pitch" />
+          <div className="flex items-center gap-4">
+            {/* Home button */}
+            <Link to="/" className="group">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10 transition-all"
+              >
+                <Home className="w-5 h-5" />
+              </Button>
+            </Link>
+            
+            <div className="hidden sm:block w-px h-8 bg-primary-foreground/20" />
+            
+            <div className="w-11 h-11 bg-gradient-to-br from-gold to-gold/80 rounded-xl flex items-center justify-center shadow-md">
+              <Trophy className="w-6 h-6 text-pitch" />
             </div>
             <div>
-              <h1 className="font-display text-3xl md:text-4xl tracking-wide">
-                {tournamentConfig.name}
-              </h1>
-              <p className="text-sm opacity-80">
-                Simulador de Liga por Dados • {tournamentConfig.format === "double" ? "Ida y Vuelta" : "Solo Ida"}
-              </p>
+              <div className="flex items-center gap-2">
+                <h1 className="font-display text-2xl md:text-3xl tracking-wide">
+                  {tournamentConfig.name}
+                </h1>
+                {tournamentConfig.playoffsEnabled && (
+                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 bg-purple-500/20 text-purple-200 text-xs font-medium rounded-full">
+                    + Playoffs
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-sm opacity-75">
+                <span>{tournamentConfig.format === "double" ? "Ida y Vuelta" : "Solo Ida"}</span>
+                <ChevronRight className="w-3 h-3" />
+                <span>Simulador de Liga por Dados</span>
+              </div>
             </div>
           </div>
           
           <div className="flex items-center gap-1">
-            <Link to="/liga">
-              <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/10 gap-2">
-                <Globe className="w-4 h-4" />
-                <span className="hidden sm:inline">Liga</span>
-              </Button>
-            </Link>
             
             <Dialog>
               <DialogTrigger asChild>

@@ -79,13 +79,15 @@ export const PlayoffBracket = ({
   const isSingleLeg = tournamentConfig.playoffsFormat === "single";
 
   return (
-    <Card className="bg-card border shadow-card overflow-hidden">
-      <CardHeader className="bg-purple-600 text-white p-4">
-        <CardTitle className="font-display text-2xl tracking-wide flex items-center gap-2">
-          <Crown className="w-6 h-6" />
+    <Card className="bg-card border rounded-2xl shadow-lg overflow-hidden">
+      <CardHeader className="bg-gradient-to-r from-purple-600 via-purple-600 to-purple-500 text-white p-5">
+        <CardTitle className="font-display text-2xl tracking-wide flex items-center gap-3">
+          <div className="p-2 bg-white/10 rounded-lg">
+            <Crown className="w-5 h-5" />
+          </div>
           Playoffs
         </CardTitle>
-        <p className="text-sm text-purple-100 mt-1">
+        <p className="text-sm text-purple-100 mt-1 ml-12">
           {getFormatDescription(tournamentConfig.playoffsFormat)}
         </p>
       </CardHeader>

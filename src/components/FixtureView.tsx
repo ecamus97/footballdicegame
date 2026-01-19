@@ -91,11 +91,13 @@ export const FixtureView = ({
   };
 
   return (
-    <div className="bg-card rounded-xl border shadow-card overflow-hidden">
-      <div className="bg-primary text-primary-foreground p-4">
+    <div className="bg-card rounded-2xl border shadow-lg overflow-hidden">
+      <div className="bg-gradient-to-r from-primary via-primary to-primary/90 text-primary-foreground p-5">
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-2xl tracking-wide flex items-center gap-2">
-            <Calendar className="w-6 h-6" />
+          <h2 className="font-display text-2xl tracking-wide flex items-center gap-3">
+            <div className="p-2 bg-primary-foreground/10 rounded-lg">
+              <Calendar className="w-5 h-5" />
+            </div>
             Fixture
           </h2>
           <div className="flex items-center gap-2">
@@ -168,11 +170,12 @@ export const FixtureView = ({
       {viewMode === "regular" ? (
         <>
           {/* Matchday Navigation */}
-          <div className="p-4 border-b bg-muted/30">
+          <div className="p-5 border-b bg-gradient-to-b from-muted/50 to-transparent">
             <div className="flex items-center justify-between gap-4">
               <Button
                 variant="outline"
                 size="icon"
+                className="rounded-full shadow-sm"
                 onClick={() => setCurrentMatchday(prev => Math.max(1, prev - 1))}
                 disabled={currentMatchday === 1}
               >
@@ -209,6 +212,7 @@ export const FixtureView = ({
               <Button
                 variant="outline"
                 size="icon"
+                className="rounded-full shadow-sm"
                 onClick={() => setCurrentMatchday(prev => Math.min(totalMatchdays, prev + 1))}
                 disabled={currentMatchday === totalMatchdays}
               >
@@ -216,16 +220,16 @@ export const FixtureView = ({
               </Button>
             </div>
             
-            <div className="text-center mt-2">
-              <span className="font-display text-xl">Fecha {currentMatchday}</span>
-              <span className="text-sm text-muted-foreground ml-2">
-                ({playedInMatchday}/{totalInMatchday} jugados)
+            <div className="text-center mt-3">
+              <span className="font-display text-2xl">Fecha {currentMatchday}</span>
+              <span className="text-sm text-muted-foreground ml-3 px-2 py-0.5 bg-muted rounded-full">
+                {playedInMatchday}/{totalInMatchday} jugados
               </span>
             </div>
           </div>
           
           {/* Matches List */}
-          <div className="p-4 space-y-3">
+          <div className="p-4 space-y-2.5">
             {matchdayMatches.map(match => {
               // Check if this is a "bye" match (team vs null opponent)
               const team1 = getTeamById(match.homeTeamId);

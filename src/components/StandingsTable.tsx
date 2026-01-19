@@ -180,21 +180,23 @@ export const StandingsTable = ({ standings, getTeamById, tournamentConfig }: Sta
   }
 
   return (
-    <div className="bg-card rounded-xl border shadow-card overflow-hidden">
-      <div className="bg-primary text-primary-foreground p-4">
-        <h2 className="font-display text-2xl tracking-wide flex items-center gap-2">
-          <Trophy className="w-6 h-6" />
+    <div className="bg-card rounded-2xl border shadow-lg overflow-hidden">
+      <div className="bg-gradient-to-r from-primary via-primary to-primary/90 text-primary-foreground p-5">
+        <h2 className="font-display text-2xl tracking-wide flex items-center gap-3">
+          <div className="p-2 bg-primary-foreground/10 rounded-lg">
+            <Trophy className="w-5 h-5" />
+          </div>
           Tabla de Posiciones
         </h2>
       </div>
       
       {/* Legend */}
       {legendItems.length > 0 && (
-        <div className="px-4 py-2 bg-muted/30 border-b flex flex-wrap gap-3">
+        <div className="px-5 py-3 bg-gradient-to-r from-muted/50 to-transparent border-b flex flex-wrap gap-4">
           {legendItems.map((item, index) => (
-            <div key={index} className="flex items-center gap-1.5 text-xs">
-              <div className={cn("w-3 h-3 rounded-sm", item.color)} />
-              <span className="text-muted-foreground">{item.label}</span>
+            <div key={index} className="flex items-center gap-2 text-xs">
+              <div className={cn("w-3 h-3 rounded-sm shadow-sm", item.color)} />
+              <span className="text-muted-foreground font-medium">{item.label}</span>
             </div>
           ))}
         </div>
