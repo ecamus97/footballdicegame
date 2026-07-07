@@ -6,24 +6,21 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Competition from "./pages/Competition";
 import NotFound from "./pages/NotFound";
-
 const queryClient = new QueryClient();
-
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter basename="/footballdicegame">
         <Routes>
           <Route path="/" element={<Competition />} />
           <Route path="/liga" element={<Index />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-      <BrowserRouter basename="/footballdicegame">
+      </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );
-
 export default App;
