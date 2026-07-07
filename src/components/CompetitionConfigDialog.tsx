@@ -171,11 +171,19 @@ export const CompetitionConfigDialog = ({
   const numTeams = customTeams.length;
   const numGroups = Math.floor(numTeams / 4);
   const teamsPerPot = numGroups;
-  
+
   const needsGroups = competitionType === "groups_knockout" || competitionType === "qualifying_groups_knockout";
   const needsKnockout = competitionType !== "league";
   const needsQualifying = competitionType === "qualifying_groups_knockout";
-  
+
+  // Keep "mejores terceros" from exceeding the number of groups available
+  useEffect(() => {
+    if (bestThirdsCount > numGroups) {
+      const validOptions = [4, 6, 8].filter(n => n <= numGroups);
+      setBestThirdsCount(validOptions[validOptions.length - 1] || 0);
+    }
+  }, [numGroups, bestThirdsCount]);
+
   // Validation
   const isValidTeamCount = (): { valid: boolean; message: string } => {
     if (numTeams < 4) {
@@ -405,8 +413,8 @@ export const CompetitionConfigDialog = ({
           </div>
         </div>
         
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-hidden px-6 py-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 overflow-hidden flex flex-col">
+          <div className="flex-1 min-h-0 overflow-hidden px-6 py-4">
             {/* Type Tab */}
             <TabsContent value="type" className="m-0 h-full overflow-y-auto">
               <div className="space-y-6">
@@ -723,7 +731,7 @@ export const CompetitionConfigDialog = ({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {[4, 6, 8].map(n => (
+                              {[4, 6, 8].filter(n => n <= numGroups).map(n => (
                                 <SelectItem key={n} value={String(n)}>{n} mejores terceros</SelectItem>
                               ))}
                             </SelectContent>
