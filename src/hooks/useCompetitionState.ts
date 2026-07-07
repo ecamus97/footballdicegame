@@ -1066,45 +1066,84 @@ export const useCompetitionState = () => {
     const thirds = qualifiedByPosition.filter(t => t.position === 3);
     
     if (qualificationRule === "first_second" || qualificationRule === "first_second_best_thirds") {
-      // Pair groups: A-B, C-D, E-F, etc.
-      // For each pair: 1A vs 2B goes to top, 1B vs 2A goes to bottom
-      const topBracket: { team1: string; team2: string }[] = [];
-      const bottomBracket: { team1: string; team2: string }[] = [];
-      
-      for (let i = 0; i < numGroups; i += 2) {
-        const first1 = firsts.find(t => t.groupIndex === i);
-        const first2 = firsts.find(t => t.groupIndex === i + 1);
-        const second1 = seconds.find(t => t.groupIndex === i);
-        const second2 = seconds.find(t => t.groupIndex === i + 1);
-        
-        if (first1 && second2) {
-          // 1A vs 2B on top (lower seed = first1 is higher in standings)
-          topBracket.push({ team1: first1.teamId, team2: second2.teamId });
-        }
-        if (first2 && second1) {
-          // 1B vs 2A on bottom
-          bottomBracket.push({ team1: first2.teamId, team2: second1.teamId });
-        }
+      // Simplified World-Cup-style crossing (inspired by the 48-team format):
+      // - T = number of qualifying third-place teams (0 for "first_second")
+      // - The last T groups are "third-facing": their 1st place team faces a best-third,
+      //   and their 2nd place teams are paired against each other.
+      // - The remaining (numGroups - T) groups do a double crossover: 1X vs 2Y and 1Y vs 2X,
+      //   so no team ever faces a team from its own group.
+      const matchups: { team1: string; team2: string }[] = [];
+      const T = thirds.length;
+
+      const allGroupIndices = Array.from({ length: numGroups }, (_, i) => i);
+      const thirdFacingIndices = T > 0 ? allGroupIndices.slice(numGroups - T) : [];
+      const crossoverIndices = T > 0 ? allGroupIndices.slice(0, numGroups - T) : allGroupIndices;
+
+      // Crossover pairs: 1A vs 2B and 1B vs 2A
+      for (let i = 0; i < crossoverIndices.length; i += 2) {
+        const groupA = crossoverIndices[i];
+        const groupB = crossoverIndices[i + 1];
+        if (groupB === undefined) break;
+
+        const firstA = firsts.find(t => t.groupIndex === groupA);
+        const firstB = firsts.find(t => t.groupIndex === groupB);
+        const secondA = seconds.find(t => t.groupIndex === groupA);
+        const secondB = seconds.find(t => t.groupIndex === groupB);
+
+        if (firstA && secondB) matchups.push({ team1: firstA.teamId, team2: secondB.teamId });
+        if (firstB && secondA) matchups.push({ team1: firstB.teamId, team2: secondA.teamId });
       }
-      
-      // Add thirds to the mix if needed (they fill remaining spots)
-      // For simplicity, add them at the end
-      
-      // Build ordered teams for bracket generation
-      // Top bracket matchups first, then bottom bracket matchups
-      for (const matchup of topBracket) {
-        orderedTeams.push(matchup.team1, matchup.team2);
+
+      // Second-vs-second pairs among the third-facing groups
+      for (let i = 0; i < thirdFacingIndices.length; i += 2) {
+        const groupA = thirdFacingIndices[i];
+        const groupB = thirdFacingIndices[i + 1];
+        if (groupB === undefined) break;
+
+        const secondA = seconds.find(t => t.groupIndex === groupA);
+        const secondB = seconds.find(t => t.groupIndex === groupB);
+        if (secondA && secondB) matchups.push({ team1: secondA.teamId, team2: secondB.teamId });
       }
-      for (const matchup of bottomBracket) {
-        orderedTeams.push(matchup.team1, matchup.team2);
-      }
-      
-      // Add thirds if any (they go to wherever there's space)
-      thirds.forEach(t => {
-        if (!orderedTeams.includes(t.teamId)) {
-          orderedTeams.push(t.teamId);
+
+      // First-vs-third pairs, avoiding a team facing a third from its own group
+      if (T > 0) {
+        const slotHosts = thirdFacingIndices
+          .map(groupIndex => ({
+            groupLetter: competitionState.groups![groupIndex]?.letter,
+            first: firsts.find(t => t.groupIndex === groupIndex),
+          }))
+          .filter(s => s.first);
+
+        const assignment = thirds.map(t => ({
+          teamId: t.teamId,
+          groupLetter: competitionState.groups![t.groupIndex]?.letter,
+        }));
+
+        // Resolve same-group conflicts by swapping with another slot
+        for (let i = 0; i < assignment.length && i < slotHosts.length; i++) {
+          if (assignment[i].groupLetter === slotHosts[i].groupLetter) {
+            for (let j = 0; j < assignment.length; j++) {
+              if (j === i) continue;
+              if (
+                assignment[j].groupLetter !== slotHosts[i].groupLetter &&
+                assignment[i].groupLetter !== slotHosts[j]?.groupLetter
+              ) {
+                [assignment[i], assignment[j]] = [assignment[j], assignment[i]];
+                break;
+              }
+            }
+          }
         }
-      });
+
+        slotHosts.forEach((slot, idx) => {
+          const third = assignment[idx];
+          if (slot.first && third) {
+            matchups.push({ team1: slot.first.teamId, team2: third.teamId });
+          }
+        });
+      }
+
+      matchups.forEach(m => orderedTeams.push(m.team1, m.team2));
     } else {
       // first_only rule - just use firsts in order
       firsts.forEach(t => orderedTeams.push(t.teamId));
