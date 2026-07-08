@@ -35,7 +35,6 @@ import {
   DialogDescription 
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch as SwitchComponent } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -413,10 +412,10 @@ export const CompetitionConfigDialog = ({
           </div>
         </div>
         
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 overflow-hidden flex flex-col">
-          <div className="flex-1 min-h-0 overflow-hidden px-6 py-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
             {/* Type Tab */}
-            <TabsContent value="type" className="m-0 h-full overflow-y-auto">
+            <TabsContent value="type" className="m-0">
               <div className="space-y-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold">Nombre de la Competencia</Label>
@@ -474,8 +473,8 @@ export const CompetitionConfigDialog = ({
             </TabsContent>
             
             {/* Teams Tab */}
-            <TabsContent value="teams" className="m-0 h-full overflow-hidden flex flex-col">
-              <div className="space-y-4 flex-1 flex flex-col min-h-0">
+            <TabsContent value="teams" className="m-0">
+              <div className="space-y-4">
                 {/* Team count selector */}
                 <div className="flex flex-wrap items-end gap-4">
                   <div className="flex-1 min-w-[200px] space-y-2">
@@ -530,12 +529,12 @@ export const CompetitionConfigDialog = ({
                 )}
                 
                 {/* Teams list */}
-                <div className="flex-1 min-h-0 border-2 rounded-2xl overflow-hidden flex flex-col bg-card">
+                <div className="border-2 rounded-2xl overflow-hidden bg-card">
                   <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
                     <Label className="text-sm font-semibold">Configurar equipos</Label>
                     <span className="text-xs text-muted-foreground">Clic en nombre para editar</span>
                   </div>
-                  <ScrollArea className="flex-1 min-h-0">
+                  <div className="max-h-[45vh] overflow-y-auto">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-4">
                       {customTeams.map((team, index) => (
                         <div
@@ -592,13 +591,13 @@ export const CompetitionConfigDialog = ({
                       ))}
                     </div>
                     <div className="h-4" />
-                  </ScrollArea>
+                  </div>
                 </div>
               </div>
             </TabsContent>
-            
+
             {/* Phases Tab */}
-            <TabsContent value="phases" className="m-0 h-full overflow-y-auto">
+            <TabsContent value="phases" className="m-0">
               <div className="space-y-6">
                 {/* Qualifying Config */}
                 {needsQualifying && (
@@ -801,8 +800,8 @@ export const CompetitionConfigDialog = ({
             </TabsContent>
             
             {/* Pots Tab */}
-            <TabsContent value="pots" className="m-0 h-full flex flex-col">
-              <div className="space-y-4 flex-1 flex flex-col min-h-0">
+            <TabsContent value="pots" className="m-0">
+              <div className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -851,8 +850,8 @@ export const CompetitionConfigDialog = ({
                 </div>
                 
                 {/* Pots and unassigned teams in scrollable container */}
-                <div className="flex-1 min-h-0 border-2 rounded-2xl overflow-hidden bg-card">
-                  <ScrollArea className="h-full">
+                <div className="border-2 rounded-2xl overflow-hidden bg-card">
+                  <div className="max-h-[50vh] overflow-y-auto">
                     <div className="space-y-4 p-4">
                       {/* Pots */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -946,13 +945,13 @@ export const CompetitionConfigDialog = ({
                         </div>
                       </div>
                     </div>
-                  </ScrollArea>
+                  </div>
                 </div>
               </div>
             </TabsContent>
-            
+
             {/* Summary Tab */}
-            <TabsContent value="summary" className="m-0 h-full overflow-y-auto">
+            <TabsContent value="summary" className="m-0">
               <div className="space-y-6">
                 <div className="p-6 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent rounded-2xl border-2 border-primary/20 space-y-4">
                   <div className="flex items-center gap-3">
