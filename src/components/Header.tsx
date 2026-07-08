@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { RotateCcw, Trophy, Info, Home, ChevronRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { RotateCcw, Trophy, Info, Home } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   AlertDialog,
@@ -61,51 +62,49 @@ export const Header = ({
   totalMatches,
 }: HeaderProps) => {
   return (
-    <header className="bg-gradient-to-r from-primary via-primary to-primary/90 text-primary-foreground shadow-lg">
-      <div className="container mx-auto px-4 py-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-lg">
+      <div className="container mx-auto px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             {/* Home button */}
-            <Link to="/" className="group">
-              <Button 
-                variant="ghost" 
+            <Link to="/">
+              <Button
+                variant="ghost"
                 size="icon"
-                className="text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10 transition-all"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <Home className="w-5 h-5" />
               </Button>
             </Link>
-            
-            <div className="hidden sm:block w-px h-8 bg-primary-foreground/20" />
-            
-            <div className="w-11 h-11 bg-gradient-to-br from-gold to-gold/80 rounded-xl flex items-center justify-center shadow-md">
-              <Trophy className="w-6 h-6 text-pitch" />
+
+            <div className="hidden sm:block w-px h-8 bg-border" />
+
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-gold to-gold/80 flex items-center justify-center shadow-sm flex-shrink-0">
+              <Trophy className="w-5 h-5 text-pitch" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="font-display text-2xl md:text-3xl tracking-wide">
+                <span className="font-display text-lg font-bold truncate">
                   {tournamentConfig.name}
-                </h1>
+                </span>
                 {tournamentConfig.playoffsEnabled && (
-                  <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 bg-purple-500/20 text-purple-200 text-xs font-medium rounded-full">
+                  <Badge variant="secondary" className="hidden sm:inline-flex text-xs">
                     + Playoffs
-                  </span>
+                  </Badge>
                 )}
               </div>
-              <div className="flex items-center gap-2 text-sm opacity-75">
-                <span>{tournamentConfig.format === "double" ? "Ida y Vuelta" : "Solo Ida"}</span>
-                <ChevronRight className="w-3 h-3" />
-                <span>Simulador de Liga por Dados</span>
-              </div>
+              <span className="hidden sm:inline text-sm text-muted-foreground">
+                {tournamentConfig.format === "double" ? "Ida y Vuelta" : "Solo Ida"} • Liga
+              </span>
             </div>
           </div>
-          
-          <div className="flex items-center gap-1">
-            
+
+          <div className="flex items-center gap-2">
+
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary-foreground/10">
-                  <Info className="w-5 h-5" />
+                <Button variant="outline" size="icon">
+                  <Info className="w-4 h-4" />
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-lg">
@@ -171,17 +170,15 @@ export const Header = ({
               currentPlayedMatches={playedMatches}
               currentTotalMatches={totalMatches}
               hasPlayoffs={tournamentConfig.playoffsEnabled}
-              triggerVariant="ghost"
-              triggerSize="icon"
-              triggerClassName="text-primary-foreground hover:bg-primary-foreground/10"
-              triggerIconClassName="w-5 h-5"
-              showTriggerLabel={false}
+              triggerVariant="outline"
+              triggerSize="sm"
             />
-            
+
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary-foreground/10">
-                  <RotateCcw className="w-5 h-5" />
+                <Button variant="outline" size="sm" className="gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30">
+                  <RotateCcw className="w-4 h-4" />
+                  <span className="hidden sm:inline">Reiniciar</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
