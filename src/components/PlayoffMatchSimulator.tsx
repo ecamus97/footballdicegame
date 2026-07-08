@@ -162,9 +162,20 @@ export const PlayoffMatchSimulator = ({
       
       const secondTeam1Roll = rollDie();
       const secondTeam2Roll = rollDie();
-      const finalTeam1Goals = dieToGoals(secondTeam1Roll);
-      const finalTeam2Goals = dieToGoals(secondTeam2Roll);
-      
+      const secondTeam1Goals = dieToGoals(secondTeam1Roll);
+      const secondTeam2Goals = dieToGoals(secondTeam2Roll);
+
+      // Keep whichever roll is best for the stronger team (win > draw > loss),
+      // not simply the second roll
+      const firstTeam1Goals = result!.homeGoals;
+      const firstTeam2Goals = result!.awayGoals;
+      const strongerIsTeam1 = team1.level < team2.level;
+      const strongerDiff1 = strongerIsTeam1 ? firstTeam1Goals - firstTeam2Goals : firstTeam2Goals - firstTeam1Goals;
+      const strongerDiff2 = strongerIsTeam1 ? secondTeam1Goals - secondTeam2Goals : secondTeam2Goals - secondTeam1Goals;
+
+      const finalTeam1Goals = strongerDiff2 > strongerDiff1 ? secondTeam1Goals : firstTeam1Goals;
+      const finalTeam2Goals = strongerDiff2 > strongerDiff1 ? secondTeam2Goals : firstTeam2Goals;
+
       const newResult: PlayoffMatchResult = {
         ...result!,
         homeGoals: finalTeam1Goals,
