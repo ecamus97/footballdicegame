@@ -20,6 +20,7 @@ import {
   PenaltyResult
 } from "@/types/competition";
 import { Team } from "@/types/game";
+import { rollDie, dieToGoals, needsSecondRoll, pickBetterRollForStrongerTeam } from "@/lib/diceMatch";
 
 // ============= Group Stage Logic =============
 
@@ -728,74 +729,47 @@ export const useCompetitionState = () => {
   }, [competitionState]);
 
   // Simulate group match with level-based advantage rules
-  const rollDie = useCallback((): number => Math.floor(Math.random() * 6) + 1, []);
-  const dieToGoals = useCallback((die: number): number => die - 1, []);
-
-  const simulateGroupMatch = useCallback((matchId: string): { 
-    homeGoals: number; 
-    awayGoals: number; 
+  const simulateGroupMatch = useCallback((matchId: string): {
+    homeGoals: number;
+    awayGoals: number;
     firstRoll: { home: number; away: number };
     secondRoll?: { home: number; away: number };
     requiredSecondRoll: boolean;
   } | null => {
     if (!competitionState?.groups) return null;
-    
+
     let targetMatch: GroupMatch | undefined;
     for (const group of competitionState.groups) {
       targetMatch = group.matches.find(m => m.id === matchId);
       if (targetMatch) break;
     }
-    
+
     if (!targetMatch || targetMatch.played) return null;
-    
+
     // Get teams and their levels
     const homeTeam = getTeamById(targetMatch.homeTeamId);
     const awayTeam = getTeamById(targetMatch.awayTeamId);
-    
+
     if (!homeTeam || !awayTeam) return null;
-    
-    const homeLevel = homeTeam.level;
-    const awayLevel = awayTeam.level;
-    const levelDiff = Math.abs(homeLevel - awayLevel);
-    const strongerIsHome = homeLevel < awayLevel;
-    
+
     // First roll
     const homeRoll1 = rollDie();
     const awayRoll1 = rollDie();
     const homeGoals1 = dieToGoals(homeRoll1);
     const awayGoals1 = dieToGoals(awayRoll1);
-    
-    // Determine if second roll is needed based on rules
-    let requiredSecondRoll = false;
-    let useSecondRoll = false;
-    
-    // Same level: No advantage
-    if (levelDiff === 0) {
-      requiredSecondRoll = false;
-    }
-    // 1 level difference: Only if stronger is HOME and doesn't win
-    else if (levelDiff === 1) {
-      if (strongerIsHome) {
-        const strongerWon = homeGoals1 > awayGoals1;
-        requiredSecondRoll = !strongerWon;
-      } else {
-        // Stronger is away with 1 level diff = no advantage
-        requiredSecondRoll = false;
-      }
-    }
-    // 2+ levels difference: Stronger always has advantage regardless of venue
-    else {
-      const strongerWon = strongerIsHome 
-        ? homeGoals1 > awayGoals1 
-        : awayGoals1 > homeGoals1;
-      requiredSecondRoll = !strongerWon;
-    }
-    
+
+    const requiredSecondRoll = needsSecondRoll({
+      team1Level: homeTeam.level,
+      team2Level: awayTeam.level,
+      team1Goals: homeGoals1,
+      team2Goals: awayGoals1,
+    });
+
     // Calculate final result
     let finalHomeGoals = homeGoals1;
     let finalAwayGoals = awayGoals1;
     let secondRoll: { home: number; away: number } | undefined;
-    
+
     if (requiredSecondRoll) {
       // Second roll (will be triggered by UI, but we pre-calculate)
       const homeRoll2 = rollDie();
@@ -807,14 +781,14 @@ export const useCompetitionState = () => {
 
       // Keep whichever roll is best for the stronger team (win > draw > loss),
       // not simply the second roll
-      const strongerDiff1 = strongerIsHome ? homeGoals1 - awayGoals1 : awayGoals1 - homeGoals1;
-      const strongerDiff2 = strongerIsHome ? homeGoals2 - awayGoals2 : awayGoals2 - homeGoals2;
-
-      if (strongerDiff2 > strongerDiff1) {
-        finalHomeGoals = homeGoals2;
-        finalAwayGoals = awayGoals2;
-      }
-      // else: keep first roll result (already the default)
+      const best = pickBetterRollForStrongerTeam(
+        homeTeam.level,
+        awayTeam.level,
+        { team1Goals: homeGoals1, team2Goals: awayGoals1 },
+        { team1Goals: homeGoals2, team2Goals: awayGoals2 }
+      );
+      finalHomeGoals = best.team1Goals;
+      finalAwayGoals = best.team2Goals;
     }
 
     return {
@@ -824,7 +798,7 @@ export const useCompetitionState = () => {
       secondRoll,
       requiredSecondRoll,
     };
-  }, [competitionState, rollDie, dieToGoals, getTeamById]);
+  }, [competitionState, getTeamById]);
 
   // Confirm group match result
   const confirmGroupMatchResult = useCallback((
@@ -1250,48 +1224,25 @@ export const useCompetitionState = () => {
     const isNeutral = match.isNeutralVenue;
     const isSecondLeg = series.leg2Id === matchId;
     const isSingleLeg = !series.leg2Id;
-    
-    const team1Level = team1.level;
-    const team2Level = team2.level;
-    const levelDiff = Math.abs(team1Level - team2Level);
-    const strongerIsTeam1 = team1Level < team2Level;
-    
+
     // First roll
     const team1Roll1 = rollDie();
     const team2Roll1 = rollDie();
     const team1Goals1 = dieToGoals(team1Roll1);
     const team2Goals1 = dieToGoals(team2Roll1);
-    
-    let requiredSecondRoll = false;
-    
-    // Level advantage rules
-    if (levelDiff === 0) {
-      requiredSecondRoll = false;
-    } else if (isNeutral) {
-      // Neutral venue: stronger team has advantage if not winning
-      const strongerWon = strongerIsTeam1 
-        ? team1Goals1 > team2Goals1 
-        : team2Goals1 > team1Goals1;
-      requiredSecondRoll = !strongerWon && levelDiff >= 1;
-    } else if (levelDiff === 1) {
-      // 1 level diff: only if stronger is home (team1) and doesn't win
-      if (strongerIsTeam1) {
-        requiredSecondRoll = team1Goals1 <= team2Goals1;
-      } else {
-        requiredSecondRoll = false;
-      }
-    } else {
-      // 2+ levels: stronger always has advantage
-      const strongerWon = strongerIsTeam1 
-        ? team1Goals1 > team2Goals1 
-        : team2Goals1 > team1Goals1;
-      requiredSecondRoll = !strongerWon;
-    }
-    
+
+    const requiredSecondRoll = needsSecondRoll({
+      team1Level: team1.level,
+      team2Level: team2.level,
+      team1Goals: team1Goals1,
+      team2Goals: team2Goals1,
+      isNeutral,
+    });
+
     let finalTeam1Goals = team1Goals1;
     let finalTeam2Goals = team2Goals1;
     let secondRoll: { team1: number; team2: number } | undefined;
-    
+
     if (requiredSecondRoll) {
       const team1Roll2 = rollDie();
       const team2Roll2 = rollDie();
@@ -1302,14 +1253,14 @@ export const useCompetitionState = () => {
 
       // Keep whichever roll is best for the stronger team (win > draw > loss),
       // not simply the second roll
-      const strongerDiff1 = strongerIsTeam1 ? team1Goals1 - team2Goals1 : team2Goals1 - team1Goals1;
-      const strongerDiff2 = strongerIsTeam1 ? team1Goals2 - team2Goals2 : team2Goals2 - team1Goals2;
-
-      if (strongerDiff2 > strongerDiff1) {
-        finalTeam1Goals = team1Goals2;
-        finalTeam2Goals = team2Goals2;
-      }
-      // else: keep first roll result (already the default)
+      const best = pickBetterRollForStrongerTeam(
+        team1.level,
+        team2.level,
+        { team1Goals: team1Goals1, team2Goals: team2Goals1 },
+        { team1Goals: team1Goals2, team2Goals: team2Goals2 }
+      );
+      finalTeam1Goals = best.team1Goals;
+      finalTeam2Goals = best.team2Goals;
     }
     
     // Check if we need penalties (for single leg or second leg with tied aggregate)
