@@ -164,7 +164,7 @@ const getDefaultTeamLevels = (): Record<string, 1 | 2 | 3 | 4> => {
   return levels;
 };
 
-// Auto-save current session (separate from the named "liga-saves" slots) so a
+// Auto-save current session (separate from the named save slots) so a
 // page refresh keeps the current tournament instead of starting a fresh one.
 const AUTOSAVE_KEY = "footballdicegame_liga_autosave";
 
