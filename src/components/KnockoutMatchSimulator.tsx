@@ -5,7 +5,6 @@ import { Dice } from "./Dice";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Dices, CheckCircle2, RefreshCw, Shield, Home, Plane, Flag, Trophy, Target } from "lucide-react";
 
@@ -175,9 +174,19 @@ export const KnockoutMatchSimulator = ({
       
       const secondTeam1Roll = rollDie();
       const secondTeam2Roll = rollDie();
-      const finalTeam1Goals = dieToGoals(secondTeam1Roll);
-      const finalTeam2Goals = dieToGoals(secondTeam2Roll);
-      
+      const secondTeam1Goals = dieToGoals(secondTeam1Roll);
+      const secondTeam2Goals = dieToGoals(secondTeam2Roll);
+
+      // Keep whichever roll is best for the stronger team (win > draw > loss),
+      // not simply the second roll
+      const firstTeam1Goals = result!.team1Goals;
+      const firstTeam2Goals = result!.team2Goals;
+      const strongerDiff1 = isStrongerTeam1 ? firstTeam1Goals - firstTeam2Goals : firstTeam2Goals - firstTeam1Goals;
+      const strongerDiff2 = isStrongerTeam1 ? secondTeam1Goals - secondTeam2Goals : secondTeam2Goals - secondTeam1Goals;
+
+      const finalTeam1Goals = strongerDiff2 > strongerDiff1 ? secondTeam1Goals : firstTeam1Goals;
+      const finalTeam2Goals = strongerDiff2 > strongerDiff1 ? secondTeam2Goals : firstTeam2Goals;
+
       const newResult: KnockoutMatchResult = {
         ...result!,
         team1Goals: finalTeam1Goals,
@@ -351,7 +360,7 @@ export const KnockoutMatchSimulator = ({
 
   return (
     <Dialog open={!!match} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-2xl h-[85vh] max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl tracking-wide flex items-center gap-2">
             <Shield className="w-5 h-5" />
@@ -359,7 +368,7 @@ export const KnockoutMatchSimulator = ({
           </DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-4">
         <div className="space-y-6 pb-4">
           {/* Teams Display */}
           <div className="flex items-center justify-between gap-4 p-4 bg-secondary/50 rounded-xl">
@@ -617,7 +626,7 @@ export const KnockoutMatchSimulator = ({
             {getPhaseMessage()}
           </div>
         </div>
-        </ScrollArea>
+        </div>
 
         {/* Fixed Footer with Actions */}
         <DialogFooter className="flex justify-center gap-3 pt-4 border-t">
