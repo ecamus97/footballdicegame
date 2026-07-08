@@ -20,7 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { TournamentConfig } from "./TournamentConfig";
-import { SaveLoadGame } from "./SaveLoadGame";
+import { CompetitionSaveLoad } from "./CompetitionSaveLoad";
 import { Team, TeamLevel, TournamentConfig as TournamentConfigType } from "@/types/game";
 
 interface HeaderProps {
@@ -163,13 +163,19 @@ export const Header = ({
               hasPlayedMatches={hasPlayedMatches}
             />
 
-            <SaveLoadGame
-              onSave={onSave}
+            <CompetitionSaveLoad
+              type="liga"
+              onSave={() => onSave()}
               onLoad={onLoad}
-              currentTournamentName={tournamentConfig.name}
+              currentName={tournamentConfig.name}
               currentPlayedMatches={playedMatches}
               currentTotalMatches={totalMatches}
               hasPlayoffs={tournamentConfig.playoffsEnabled}
+              triggerVariant="ghost"
+              triggerSize="icon"
+              triggerClassName="text-primary-foreground hover:bg-primary-foreground/10"
+              triggerIconClassName="w-5 h-5"
+              showTriggerLabel={false}
             />
             
             <AlertDialog>
