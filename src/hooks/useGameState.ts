@@ -271,15 +271,27 @@ export const useGameState = () => {
     let finalHomeGoals = firstHomeGoals;
     let finalAwayGoals = firstAwayGoals;
     let secondRoll: { home: number; away: number } | undefined;
-    
+
     if (requiresSecond) {
       const secondHomeRoll = rollDie();
       const secondAwayRoll = rollDie();
-      finalHomeGoals = dieToGoals(secondHomeRoll);
-      finalAwayGoals = dieToGoals(secondAwayRoll);
+      const secondHomeGoals = dieToGoals(secondHomeRoll);
+      const secondAwayGoals = dieToGoals(secondAwayRoll);
       secondRoll = { home: secondHomeRoll, away: secondAwayRoll };
+
+      // Keep whichever roll is best for the stronger team (win > draw > loss),
+      // not simply the second roll
+      const strongerIsHome = homeTeam.level < awayTeam.level;
+      const strongerDiff1 = strongerIsHome ? firstHomeGoals - firstAwayGoals : firstAwayGoals - firstHomeGoals;
+      const strongerDiff2 = strongerIsHome ? secondHomeGoals - secondAwayGoals : secondAwayGoals - secondHomeGoals;
+
+      if (strongerDiff2 > strongerDiff1) {
+        finalHomeGoals = secondHomeGoals;
+        finalAwayGoals = secondAwayGoals;
+      }
+      // else: keep first roll result (already the default)
     }
-    
+
     return {
       homeGoals: finalHomeGoals,
       awayGoals: finalAwayGoals,
@@ -579,13 +591,25 @@ export const useGameState = () => {
     let finalTeam1Goals = firstTeam1Goals;
     let finalTeam2Goals = firstTeam2Goals;
     let secondRoll: { home: number; away: number } | undefined;
-    
+
     if (requiresSecond) {
       const secondTeam1Roll = rollDie();
       const secondTeam2Roll = rollDie();
-      finalTeam1Goals = dieToGoals(secondTeam1Roll);
-      finalTeam2Goals = dieToGoals(secondTeam2Roll);
+      const secondTeam1Goals = dieToGoals(secondTeam1Roll);
+      const secondTeam2Goals = dieToGoals(secondTeam2Roll);
       secondRoll = { home: secondTeam1Roll, away: secondTeam2Roll };
+
+      // Keep whichever roll is best for the stronger team (win > draw > loss),
+      // not simply the second roll
+      const strongerIsTeam1 = team1.level < team2.level;
+      const strongerDiff1 = strongerIsTeam1 ? firstTeam1Goals - firstTeam2Goals : firstTeam2Goals - firstTeam1Goals;
+      const strongerDiff2 = strongerIsTeam1 ? secondTeam1Goals - secondTeam2Goals : secondTeam2Goals - secondTeam1Goals;
+
+      if (strongerDiff2 > strongerDiff1) {
+        finalTeam1Goals = secondTeam1Goals;
+        finalTeam2Goals = secondTeam2Goals;
+      }
+      // else: keep first roll result (already the default)
     }
     
     return {
