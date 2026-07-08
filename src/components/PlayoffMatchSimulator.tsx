@@ -5,6 +5,7 @@ import { TeamBadge } from "./TeamBadge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { rollDie, dieToGoals, needsSecondRoll, pickBetterRollForStrongerTeam } from "@/lib/diceMatch";
 import { Dices, CheckCircle2, RefreshCw, Target, Crown } from "lucide-react";
 
 interface PlayoffMatchResult extends MatchResult {
@@ -56,6 +57,8 @@ export const PlayoffMatchSimulator = ({
   const team1 = getTeamById(match.team1Id)!;
   const team2 = getTeamById(match.team2Id)!;
   const levelDiff = match.isNeutralVenue ? 0 : Math.abs(team1.level - team2.level);
+  // Actual level difference regardless of venue (used for display + second-roll rules)
+  const actualLevelDiff = Math.abs(team1.level - team2.level);
 
   // Check if this is a single match series (no return leg)
   const isOnlyLeg = isSingleLeg || (series && !series.leg2Id);
@@ -67,37 +70,6 @@ export const PlayoffMatchSimulator = ({
   // The series tracks team1 = higher seed, team2 = lower seed
   const leg1Team1Goals = leg1Match?.team1Goals ?? 0; // Lower seed's home goals
   const leg1Team2Goals = leg1Match?.team2Goals ?? 0; // Higher seed's away goals
-
-  const rollDie = (): number => Math.floor(Math.random() * 6) + 1;
-  const dieToGoals = (die: number): number => die - 1;
-
-  // Calculate actual level difference (for neutral venue logic)
-  const actualLevelDiff = Math.abs(team1.level - team2.level);
-  
-  const needsSecondRoll = (team1Goals: number, team2Goals: number): boolean => {
-    // No level difference = no advantage
-    if (actualLevelDiff === 0) return false;
-    
-    const strongerTeam = team1.level < team2.level ? "team1" : "team2";
-    const strongerWins = strongerTeam === "team1" 
-      ? team1Goals > team2Goals 
-      : team2Goals > team1Goals;
-    
-    // In neutral venue: the stronger team always gets advantage if not winning
-    if (match.isNeutralVenue) {
-      return !strongerWins;
-    }
-    
-    // Normal match (with home/away)
-    if (actualLevelDiff === 1) {
-      // Only home team gets advantage if they're stronger
-      if (strongerTeam === "team2") return false;
-      return !strongerWins;
-    }
-    
-    // 2+ level difference: stronger team always gets advantage
-    return !strongerWins;
-  };
 
   const checkNeedsPenalties = (team1Goals: number, team2Goals: number): boolean => {
     // Single leg or final with no return leg: tie goes to penalties
@@ -129,7 +101,13 @@ export const PlayoffMatchSimulator = ({
       const firstTeam1Goals = dieToGoals(firstTeam1Roll);
       const firstTeam2Goals = dieToGoals(firstTeam2Roll);
       
-      const requiresSecond = needsSecondRoll(firstTeam1Goals, firstTeam2Goals);
+      const requiresSecond = needsSecondRoll({
+        team1Level: team1.level,
+        team2Level: team2.level,
+        team1Goals: firstTeam1Goals,
+        team2Goals: firstTeam2Goals,
+        isNeutral: match.isNeutralVenue,
+      });
       
       const newResult: PlayoffMatchResult = {
         homeGoals: firstTeam1Goals,
@@ -167,14 +145,14 @@ export const PlayoffMatchSimulator = ({
 
       // Keep whichever roll is best for the stronger team (win > draw > loss),
       // not simply the second roll
-      const firstTeam1Goals = result!.homeGoals;
-      const firstTeam2Goals = result!.awayGoals;
-      const strongerIsTeam1 = team1.level < team2.level;
-      const strongerDiff1 = strongerIsTeam1 ? firstTeam1Goals - firstTeam2Goals : firstTeam2Goals - firstTeam1Goals;
-      const strongerDiff2 = strongerIsTeam1 ? secondTeam1Goals - secondTeam2Goals : secondTeam2Goals - secondTeam1Goals;
-
-      const finalTeam1Goals = strongerDiff2 > strongerDiff1 ? secondTeam1Goals : firstTeam1Goals;
-      const finalTeam2Goals = strongerDiff2 > strongerDiff1 ? secondTeam2Goals : firstTeam2Goals;
+      const best = pickBetterRollForStrongerTeam(
+        team1.level,
+        team2.level,
+        { team1Goals: result!.homeGoals, team2Goals: result!.awayGoals },
+        { team1Goals: secondTeam1Goals, team2Goals: secondTeam2Goals }
+      );
+      const finalTeam1Goals = best.team1Goals;
+      const finalTeam2Goals = best.team2Goals;
 
       const newResult: PlayoffMatchResult = {
         ...result!,
