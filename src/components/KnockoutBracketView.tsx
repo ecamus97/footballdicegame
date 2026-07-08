@@ -2,7 +2,6 @@ import { KnockoutSeries, KnockoutMatch, KnockoutRound, CompetitionConfig } from 
 import { Team } from "@/types/game";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Crown, Play, Trophy, Swords, ChevronRight, Zap } from "lucide-react";
 
@@ -166,7 +165,7 @@ export const KnockoutBracketView = ({
       </div>
 
       {/* Horizontal Bracket */}
-      <ScrollArea className="w-full">
+      <div className="w-full overflow-x-auto">
         <div className="flex gap-6 min-w-max pb-4">
           {rounds.map((round, roundIndex) => {
             const roundSeries = series.filter(s => s.round === round);
@@ -440,7 +439,7 @@ export const KnockoutBracketView = ({
             </div>
           </div>
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 };
