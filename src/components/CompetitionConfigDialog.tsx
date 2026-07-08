@@ -173,8 +173,23 @@ export const CompetitionConfigDialog = ({
   const teamsPerPot = numGroups;
 
   const needsGroups = competitionType === "groups_knockout" || competitionType === "qualifying_groups_knockout";
-  const needsKnockout = competitionType !== "league";
+  const needsKnockout = competitionType !== "league" && competitionType !== "league_playoffs";
   const needsQualifying = competitionType === "qualifying_groups_knockout";
+  const needsLeague = competitionType === "league" || competitionType === "league_playoffs";
+
+  // League config state
+  const [leagueFormat, setLeagueFormat] = useState<"single" | "double">("double");
+  const [allowOddTeamsLeague, setAllowOddTeamsLeague] = useState(false);
+  const [leaguePlayoffsFormat, setLeaguePlayoffsFormat] = useState<"single" | "double" | "final_only">("double");
+  const [leaguePlayoffsTeams, setLeaguePlayoffsTeams] = useState(4);
+  const [leagueRelegationSpots, setLeagueRelegationSpots] = useState(0);
+  const [leagueInternationalCups, setLeagueInternationalCups] = useState<{ name: string; spots: number; color: string }[]>([]);
+  const [leaguePromotionPlayoffEnabled, setLeaguePromotionPlayoffEnabled] = useState(false);
+  const [leaguePromotionPlayoffSpots, setLeaguePromotionPlayoffSpots] = useState(1);
+
+  const teamCountOptions = needsLeague
+    ? Array.from({ length: 37 }, (_, i) => i + 4) // 4..40, allows odd counts for league
+    : [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 48, 64];
 
   // "Mejores terceros" only produces a valid (power-of-2) knockout bracket for
   // some group counts (e.g. 12 groups + 8 thirds = 32). If none of the offered
@@ -203,7 +218,11 @@ export const CompetitionConfigDialog = ({
     if (numTeams < 4) {
       return { valid: false, message: "Se requieren al menos 4 equipos" };
     }
-    
+
+    if (needsLeague && numTeams % 2 !== 0 && !allowOddTeamsLeague) {
+      return { valid: false, message: "El número de equipos debe ser par (o activa 'Permitir equipos impares')" };
+    }
+
     if (needsGroups && !isValidGroupsTeamCount(numTeams)) {
       return { valid: false, message: "Para grupos, el número de equipos debe ser múltiplo de 4" };
     }
@@ -325,14 +344,24 @@ export const CompetitionConfigDialog = ({
       participatingTeamIds: customTeams.map(t => t.id),
       drawMethod,
       pots: needsGroups ? pots : undefined,
-      relegationSpots: 0,
-      internationalCups: [],
-      promotionPlayoffEnabled: false,
-      promotionPlayoffSpots: 0,
+      relegationSpots: needsLeague ? leagueRelegationSpots : 0,
+      internationalCups: needsLeague ? leagueInternationalCups : [],
+      promotionPlayoffEnabled: needsLeague ? leaguePromotionPlayoffEnabled : false,
+      promotionPlayoffSpots: needsLeague && leaguePromotionPlayoffEnabled ? leaguePromotionPlayoffSpots : 0,
       // Pass custom teams data for use in competition
       customTeams: customTeams,
     };
-    
+
+    if (needsLeague) {
+      config.leagueFormat = leagueFormat;
+      config.allowOddTeams = allowOddTeamsLeague;
+      config.leaguePlayoffsEnabled = competitionType === "league_playoffs";
+      if (competitionType === "league_playoffs") {
+        config.leaguePlayoffsFormat = leaguePlayoffsFormat;
+        config.leaguePlayoffsTeams = leaguePlayoffsTeams;
+      }
+    }
+
     if (needsGroups) {
       config.groupConfig = {
         numGroups,
@@ -502,7 +531,7 @@ export const CompetitionConfigDialog = ({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {[4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 48, 64].map(n => (
+                        {teamCountOptions.map(n => (
                           <SelectItem key={n} value={String(n)}>
                             {n} equipos {needsGroups && n % 4 === 0 ? `(${n/4} grupos)` : ''}
                           </SelectItem>
@@ -510,7 +539,7 @@ export const CompetitionConfigDialog = ({
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div className={cn(
                     "flex items-center gap-2 px-4 py-2.5 rounded-xl",
                     validation.valid 
@@ -542,7 +571,20 @@ export const CompetitionConfigDialog = ({
                     <strong>{byesNeeded}</strong> equipos pasarán directamente a la siguiente ronda (byes)
                   </div>
                 )}
-                
+
+                {needsLeague && (
+                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-xl border">
+                    <div>
+                      <Label className="text-sm font-medium">Permitir equipos impares</Label>
+                      <p className="text-xs text-muted-foreground">Habilita un número impar de equipos en la liga</p>
+                    </div>
+                    <SwitchComponent
+                      checked={allowOddTeamsLeague}
+                      onCheckedChange={setAllowOddTeamsLeague}
+                    />
+                  </div>
+                )}
+
                 {/* Teams list */}
                 <div className="border-2 rounded-2xl overflow-hidden bg-card">
                   <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
@@ -818,9 +860,207 @@ export const CompetitionConfigDialog = ({
                     </div>
                   </div>
                 )}
+
+                {/* League Config */}
+                {needsLeague && (
+                  <div className="space-y-4 p-5 bg-gradient-to-br from-cyan-500/15 to-cyan-500/5 rounded-2xl border-2 border-cyan-500/30">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                        <Medal className="w-4 h-4 text-cyan-600" />
+                      </div>
+                      <Label className="text-base font-bold">Formato de Liga</Label>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground">Formato de partidos</Label>
+                      <Select
+                        value={leagueFormat}
+                        onValueChange={(v) => setLeagueFormat(v as "single" | "double")}
+                      >
+                        <SelectTrigger className="h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="single">Solo Ida (1 partido por enfrentamiento)</SelectItem>
+                          <SelectItem value="double">Ida y Vuelta (2 partidos por enfrentamiento)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+
+                {/* League Playoffs Config */}
+                {competitionType === "league_playoffs" && (
+                  <div className="space-y-4 p-5 bg-gradient-to-br from-purple-500/15 to-purple-500/5 rounded-2xl border-2 border-purple-500/30">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                        <GitBranch className="w-4 h-4 text-purple-600" />
+                      </div>
+                      <Label className="text-base font-bold">Playoffs</Label>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground">Equipos clasifican</Label>
+                        <Select
+                          value={String(leaguePlayoffsTeams)}
+                          onValueChange={(v) => setLeaguePlayoffsTeams(parseInt(v))}
+                        >
+                          <SelectTrigger className="h-10">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[2, 4, 6, 8].map(n => (
+                              <SelectItem key={n} value={String(n)}>{n} equipos</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground">Formato playoffs</Label>
+                        <Select
+                          value={leaguePlayoffsFormat}
+                          onValueChange={(v) => setLeaguePlayoffsFormat(v as "single" | "double" | "final_only")}
+                        >
+                          <SelectTrigger className="h-10">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="single">Solo ida (todos los partidos, final en cancha neutral)</SelectItem>
+                            <SelectItem value="double">Ida y vuelta + final única neutral</SelectItem>
+                            <SelectItem value="final_only">Ida y vuelta completo (incluyendo final)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* International Cups */}
+                {needsLeague && (
+                  <div className="space-y-4 p-5 bg-gradient-to-br from-green-500/15 to-green-500/5 rounded-2xl border-2 border-green-500/30">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-green-500/20 flex items-center justify-center">
+                          <Trophy className="w-4 h-4 text-green-600" />
+                        </div>
+                        <Label className="text-base font-bold">Copas Internacionales</Label>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const colors = [
+                            "bg-green-500/20 border-l-green-500",
+                            "bg-blue-500/20 border-l-blue-500",
+                            "bg-cyan-500/20 border-l-cyan-500",
+                            "bg-teal-500/20 border-l-teal-500",
+                          ];
+                          setLeagueInternationalCups(prev => [
+                            ...prev,
+                            { name: `Copa ${prev.length + 1}`, spots: 2, color: colors[prev.length % colors.length] },
+                          ]);
+                        }}
+                        className="gap-2"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        Agregar
+                      </Button>
+                    </div>
+                    {leagueInternationalCups.length === 0 ? (
+                      <p className="text-sm text-muted-foreground italic">Sin copas configuradas</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {leagueInternationalCups.map((cup, index) => (
+                          <div key={index} className={cn("flex items-center gap-2 p-2 rounded-lg border-l-4 bg-background/50", cup.color)}>
+                            <Input
+                              value={cup.name}
+                              onChange={(e) => setLeagueInternationalCups(prev => prev.map((c, i) => i === index ? { ...c, name: e.target.value } : c))}
+                              className="flex-1 h-9"
+                            />
+                            <Select
+                              value={String(cup.spots)}
+                              onValueChange={(v) => setLeagueInternationalCups(prev => prev.map((c, i) => i === index ? { ...c, spots: parseInt(v) } : c))}
+                            >
+                              <SelectTrigger className="w-32 h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {[0, 1, 2, 3, 4, 5, 6].map(n => (
+                                  <SelectItem key={n} value={String(n)}>{n === 0 ? "Ninguno" : `${n} cupos`}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setLeagueInternationalCups(prev => prev.filter((_, i) => i !== index))}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Relegation and Promotion */}
+                {needsLeague && (
+                  <div className="space-y-4 p-5 bg-gradient-to-br from-red-500/15 to-red-500/5 rounded-2xl border-2 border-destructive/30">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-destructive/20 flex items-center justify-center">
+                        <AlertCircle className="w-4 h-4 text-destructive" />
+                      </div>
+                      <Label className="text-base font-bold">Descenso y Promoción</Label>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground">Equipos que descienden directamente</Label>
+                      <Select
+                        value={String(leagueRelegationSpots)}
+                        onValueChange={(v) => setLeagueRelegationSpots(parseInt(v))}
+                      >
+                        <SelectTrigger className="h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[0, 1, 2, 3, 4, 5, 6].map(n => (
+                            <SelectItem key={n} value={String(n)}>{n === 0 ? "Sin descenso directo" : `${n} equipos`}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-background/50 rounded-xl">
+                      <div>
+                        <Label className="text-sm font-medium">Partido de Promoción</Label>
+                        <p className="text-xs text-muted-foreground">Posiciones que juegan promoción/descenso</p>
+                      </div>
+                      <SwitchComponent
+                        checked={leaguePromotionPlayoffEnabled}
+                        onCheckedChange={setLeaguePromotionPlayoffEnabled}
+                      />
+                    </div>
+                    {leaguePromotionPlayoffEnabled && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-muted-foreground">Posiciones en promoción</Label>
+                        <Select
+                          value={String(leaguePromotionPlayoffSpots)}
+                          onValueChange={(v) => setLeaguePromotionPlayoffSpots(parseInt(v))}
+                        >
+                          <SelectTrigger className="h-10">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[1, 2, 3].map(n => (
+                              <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </TabsContent>
-            
+
             {/* Pots Tab */}
             <TabsContent value="pots" className="m-0">
               <div className="space-y-4">
@@ -1003,18 +1243,36 @@ export const CompetitionConfigDialog = ({
                         <div className="text-sm font-medium">{getQualificationRuleName(qualificationRule)}</div>
                       </div>
                     )}
-                    <div className="p-3 bg-background/50 rounded-xl">
-                      <div className="text-xs text-muted-foreground">Eliminatorias</div>
-                      <div className="text-sm font-medium">{getMatchFormatName(knockoutMatchFormat)}</div>
-                    </div>
-                    <div className="p-3 bg-background/50 rounded-xl">
-                      <div className="text-xs text-muted-foreground">Final</div>
-                      <div className="text-sm font-medium">{getMatchFormatName(finalFormat)}</div>
-                    </div>
-                    <div className="p-3 bg-background/50 rounded-xl">
-                      <div className="text-xs text-muted-foreground">Sorteo</div>
-                      <div className="text-sm font-medium">{drawMethod === "visual" ? "Visual" : "Automático"}</div>
-                    </div>
+                    {needsKnockout && (
+                      <div className="p-3 bg-background/50 rounded-xl">
+                        <div className="text-xs text-muted-foreground">Eliminatorias</div>
+                        <div className="text-sm font-medium">{getMatchFormatName(knockoutMatchFormat)}</div>
+                      </div>
+                    )}
+                    {needsKnockout && (
+                      <div className="p-3 bg-background/50 rounded-xl">
+                        <div className="text-xs text-muted-foreground">Final</div>
+                        <div className="text-sm font-medium">{getMatchFormatName(finalFormat)}</div>
+                      </div>
+                    )}
+                    {needsLeague && (
+                      <div className="p-3 bg-background/50 rounded-xl">
+                        <div className="text-xs text-muted-foreground">Formato de Liga</div>
+                        <div className="text-sm font-medium">{leagueFormat === "double" ? "Ida y Vuelta" : "Solo Ida"}</div>
+                      </div>
+                    )}
+                    {competitionType === "league_playoffs" && (
+                      <div className="p-3 bg-background/50 rounded-xl">
+                        <div className="text-xs text-muted-foreground">Playoffs</div>
+                        <div className="text-sm font-medium">{leaguePlayoffsTeams} equipos</div>
+                      </div>
+                    )}
+                    {needsGroups && (
+                      <div className="p-3 bg-background/50 rounded-xl">
+                        <div className="text-xs text-muted-foreground">Sorteo</div>
+                        <div className="text-sm font-medium">{drawMethod === "visual" ? "Visual" : "Automático"}</div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
