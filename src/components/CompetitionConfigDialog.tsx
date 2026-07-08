@@ -12,6 +12,7 @@ import {
   isValidGroupsTeamCount,
   isValidKnockoutTeamCount,
   calculateByes,
+  isPowerOf2,
 } from "@/types/competition";
 import { Team } from "@/types/game";
 import { getLevelColor } from "@/data/teams";
@@ -175,13 +176,27 @@ export const CompetitionConfigDialog = ({
   const needsKnockout = competitionType !== "league";
   const needsQualifying = competitionType === "qualifying_groups_knockout";
 
-  // Keep "mejores terceros" from exceeding the number of groups available
+  // "Mejores terceros" only produces a valid (power-of-2) knockout bracket for
+  // some group counts (e.g. 12 groups + 8 thirds = 32). If none of the offered
+  // best-thirds options result in a power of 2 for the current number of groups,
+  // the rule is unavailable to avoid generating a bracket that gets stuck.
+  const bestThirdsOptions = [4, 6, 8].filter(n => n <= numGroups && isPowerOf2(numGroups * 2 + n));
+  const bestThirdsRuleAvailable = bestThirdsOptions.length > 0;
+
+  // Fall back to "first_second" if the best-thirds rule becomes unavailable
+  // (e.g. team count changed to one with no valid best-thirds option, like 64).
   useEffect(() => {
-    if (bestThirdsCount > numGroups) {
-      const validOptions = [4, 6, 8].filter(n => n <= numGroups);
-      setBestThirdsCount(validOptions[validOptions.length - 1] || 0);
+    if (qualificationRule === "first_second_best_thirds" && !bestThirdsRuleAvailable) {
+      setQualificationRule("first_second");
     }
-  }, [numGroups, bestThirdsCount]);
+  }, [qualificationRule, bestThirdsRuleAvailable]);
+
+  // Keep bestThirdsCount pinned to one of the currently valid options
+  useEffect(() => {
+    if (bestThirdsOptions.length > 0 && !bestThirdsOptions.includes(bestThirdsCount)) {
+      setBestThirdsCount(bestThirdsOptions[bestThirdsOptions.length - 1]);
+    }
+  }, [bestThirdsOptions, bestThirdsCount]);
 
   // Validation
   const isValidTeamCount = (): { valid: boolean; message: string } => {
@@ -713,13 +728,20 @@ export const CompetitionConfigDialog = ({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {(["first_only", "first_second", "first_second_best_thirds"] as QualificationRule[]).map(r => (
-                              <SelectItem key={r} value={r}>{getQualificationRuleName(r)}</SelectItem>
-                            ))}
+                            {(["first_only", "first_second", "first_second_best_thirds"] as QualificationRule[])
+                              .filter(r => r !== "first_second_best_thirds" || bestThirdsRuleAvailable)
+                              .map(r => (
+                                <SelectItem key={r} value={r}>{getQualificationRuleName(r)}</SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
+                        {!bestThirdsRuleAvailable && (
+                          <p className="text-xs text-muted-foreground">
+                            "Mejores terceros" no está disponible para {numGroups} grupos: ninguna combinación da un número de clasificados que sea potencia de 2.
+                          </p>
+                        )}
                       </div>
-                      {qualificationRule === "first_second_best_thirds" && (
+                      {qualificationRule === "first_second_best_thirds" && bestThirdsRuleAvailable && (
                         <div className="space-y-1.5 col-span-2">
                           <Label className="text-xs font-medium text-muted-foreground">Mejores terceros que clasifican</Label>
                           <Select
@@ -730,7 +752,7 @@ export const CompetitionConfigDialog = ({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {[4, 6, 8].filter(n => n <= numGroups).map(n => (
+                              {bestThirdsOptions.map(n => (
                                 <SelectItem key={n} value={String(n)}>{n} mejores terceros</SelectItem>
                               ))}
                             </SelectContent>
