@@ -1,360 +1,330 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useCompetitionState } from "@/hooks/useCompetitionState";
-import { CompetitionConfigDialog } from "@/components/CompetitionConfigDialog";
-import { CompetitionView } from "@/components/CompetitionView";
-import { CompetitionSaveLoad } from "@/components/CompetitionSaveLoad";
-import { GroupMatchSimulator, GroupMatchResult } from "@/components/GroupMatchSimulator";
-import { KnockoutMatchSimulator, KnockoutMatchResult } from "@/components/KnockoutMatchSimulator";
-import { CompetitionConfig, GroupMatch, KnockoutMatch, KnockoutSeries, getGroupLetter, getKnockoutRoundName } from "@/types/competition";
-import { TournamentConfig as LegacyTournamentConfig } from "@/types/game";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  Trophy,
-  Globe,
-  Users,
-  Crown,
-  Home,
-} from "lucide-react";
+// Competition Types - Motor Universal de Competiciones
 
-const Competition = () => {
-  const navigate = useNavigate();
+export type CompetitionType = 
+  | "league"                  // Liga regular
+  | "league_playoffs"         // Liga + Playoffs
+  | "knockout"                // Eliminatoria directa
+  | "groups_knockout"         // Fase de grupos + Eliminatoria
+  | "qualifying_groups_knockout"; // Fase previa + Grupos + Eliminatoria
+
+export type MatchFormat = "single" | "double" | "neutral"; // ida, ida/vuelta, partido único neutral
+
+export type QualificationRule = 
+  | "first_only"       // Solo primeros de grupo
+  | "first_second"     // 1° y 2° de cada grupo
+  | "first_second_best_thirds"; // 1°, 2° y mejores terceros
+
+export type DrawMethod = "automatic" | "visual"; // Sorteo automático o visual paso a paso
+
+// Pot/Bombo for draws
+export interface DrawPot {
+  id: string;
+  name: string;
+  teamIds: string[];
+}
+
+// Group configuration
+export interface GroupConfig {
+  numGroups: number;       // Número de grupos (8, 12, 16, etc.)
+  teamsPerGroup: 4;        // Siempre 4 equipos por grupo
+  matchFormat: MatchFormat; // Formato de partidos en grupo
+  qualificationRule: QualificationRule;
+  bestThirdsCount?: number; // Cantidad de mejores terceros que clasifican
+}
+
+// Knockout/Elimination configuration
+export interface KnockoutConfig {
+  totalTeams: number;      // Equipos en eliminatoria
+  matchFormat: MatchFormat; // Formato general
+  finalFormat: MatchFormat; // Formato de la final (puede ser diferente)
+  seedByPosition: boolean;  // Si usar posiciones para cruces o sorteo
+}
+
+// Qualifying phase configuration
+export interface QualifyingConfig {
+  rounds: number;           // Número de rondas previas
+  teamsEntering: number;    // Equipos que entran en fase previa
+  matchFormat: MatchFormat;
+  directToGroups: number;   // Equipos clasificados directamente a grupos
+}
+
+// Custom team structure for editable teams
+export interface CustomTeam {
+  id: string;
+  name: string;
+  shortName: string;
+  level: 1 | 2 | 3 | 4;
+}
+
+// Full competition configuration
+export interface CompetitionConfig {
+  id: string;
+  name: string;
+  type: CompetitionType;
   
-  const {
-    competitionState,
-    getTeamById,
-    initializeCompetition,
-    executeDrawStep,
-    completeDraw,
-    simulateGroupMatch,
-    confirmGroupMatchResult,
-    simulateGroupMatchday,
-    isGroupStageComplete,
-    advanceToKnockout,
-    simulateKnockoutMatch,
-    confirmKnockoutMatchResult,
-    goToPhase,
-    saveCompetition,
-    loadCompetition,
-    resetCompetition,
-    teamLevels,
-    setCustomTeamsData,
-  } = useCompetitionState();
+  // Participating teams
+  participatingTeamIds: string[];
+  
+  // Custom teams data (for user-defined teams)
+  customTeams?: CustomTeam[];
+  
+  // League settings (for league and league_playoffs types)
+  leagueFormat?: MatchFormat;
+  allowOddTeams?: boolean;
+  leaguePlayoffsEnabled?: boolean;
+  leaguePlayoffsFormat?: "single" | "double" | "final_only";
+  leaguePlayoffsTeams?: number;
 
-  // Group Match simulator state
-  const [selectedMatch, setSelectedMatch] = useState<GroupMatch | null>(null);
-  const [selectedGroupId, setSelectedGroupId] = useState<string>("");
-  const [selectedGroupName, setSelectedGroupName] = useState<string>("");
+  // Group stage settings
+  groupConfig?: GroupConfig;
+  
+  // Knockout stage settings
+  knockoutConfig?: KnockoutConfig;
+  
+  // Qualifying phase settings
+  qualifyingConfig?: QualifyingConfig;
+  
+  // Draw settings
+  drawMethod: DrawMethod;
+  pots?: DrawPot[];
+  
+  // Legacy compatibility - kept from TournamentConfig
+  relegationSpots: number;
+  internationalCups: { name: string; spots: number; color: string }[];
+  promotionPlayoffEnabled: boolean;
+  promotionPlayoffSpots: number;
+}
 
-  // Knockout Match simulator state
-  const [selectedKnockoutMatch, setSelectedKnockoutMatch] = useState<KnockoutMatch | null>(null);
-  const [selectedKnockoutSeries, setSelectedKnockoutSeries] = useState<KnockoutSeries | null>(null);
+// ============= Group Stage Types =============
 
-  // Translate the universal CompetitionConfig into the legacy Liga
-  // TournamentConfig, so the same initial dialog can fully configure a
-  // league (including playoffs, international cups and relegation/promotion)
-  // without needing the separate in-game "Configurar" dialog.
-  const buildLegacyTournamentConfig = (config: CompetitionConfig): LegacyTournamentConfig => ({
-    name: config.name,
-    format: config.leagueFormat === "single" ? "single" : "double",
-    participatingTeamIds: config.participatingTeamIds,
-    allowOddTeams: config.allowOddTeams ?? false,
-    relegationSpots: config.relegationSpots ?? 0,
-    playoffsEnabled: config.type === "league_playoffs",
-    playoffsFormat: config.type === "league_playoffs" ? (config.leaguePlayoffsFormat ?? "double") : "none",
-    playoffsTeams: config.leaguePlayoffsTeams ?? 4,
-    internationalCups: config.internationalCups ?? [],
-    promotionPlayoffEnabled: config.promotionPlayoffEnabled ?? false,
-    promotionPlayoffSpots: config.promotionPlayoffSpots ?? 0,
-  });
+export interface Group {
+  id: string;
+  name: string;            // "Grupo A", "Grupo B", etc.
+  letter: string;          // "A", "B", etc.
+  teamIds: string[];
+  matches: GroupMatch[];
+  standings: GroupStanding[];
+}
 
-  const handleCreateCompetition = (config: CompetitionConfig) => {
-    // Redirect to liga page if league or league_playoffs type, carrying the
-    // full configuration so the Liga engine starts from it directly instead
-    // of the hardcoded default championship.
-    if (config.type === "league" || config.type === "league_playoffs") {
-      const tournamentConfig = buildLegacyTournamentConfig(config);
-      navigate("/liga", {
-        state: {
-          tournamentConfig,
-          customTeams: config.customTeams ?? [],
-        },
-      });
-      return;
-    }
+export interface GroupMatch {
+  id: string;
+  groupId: string;
+  matchday: number;
+  homeTeamId: string;
+  awayTeamId: string;
+  homeGoals: number | null;
+  awayGoals: number | null;
+  played: boolean;
+  firstRoll?: { home: number; away: number };
+  secondRoll?: { home: number; away: number };
+}
 
-    // Set custom teams data before initializing
-    if (config.customTeams) {
-      setCustomTeamsData(config.customTeams);
-    }
-    initializeCompetition(config);
+export interface GroupStanding {
+  teamId: string;
+  position: number;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  points: number;
+}
+
+// For best thirds calculation
+export interface ThirdPlaceTeam {
+  teamId: string;
+  groupId: string;
+  groupLetter: string;
+  standing: GroupStanding;
+}
+
+// ============= Knockout Stage Types =============
+
+export type KnockoutRound = 
+  | "preliminary_1" | "preliminary_2" | "preliminary_3"  // Fases previas
+  | "round_of_64" | "round_of_32" | "round_of_16"        // Rondas eliminatorias
+  | "quarterfinals" | "semifinals" | "final";
+
+export interface KnockoutMatch {
+  id: string;
+  round: KnockoutRound;
+  bracketPosition: number;  // Posición en el bracket (1-32 para round of 64, etc.)
+  leg: 1 | 2;
+  team1Id: string | null;
+  team2Id: string | null;
+  team1Goals: number | null;
+  team2Goals: number | null;
+  played: boolean;
+  isNeutralVenue: boolean;
+  isBye: boolean;           // Si es un "bye" (avance automático)
+  firstRoll?: { home: number; away: number };
+  secondRoll?: { home: number; away: number };
+  penalties?: PenaltyResult;
+}
+
+export interface KnockoutSeries {
+  id: string;
+  round: KnockoutRound;
+  bracketPosition: number;
+  team1Id: string | null;
+  team2Id: string | null;
+  team1Seed: number;
+  team2Seed: number;
+  leg1Id: string | null;
+  leg2Id: string | null;     // null for single-leg
+  winnerId: string | null;
+  team1Aggregate: number;
+  team2Aggregate: number;
+  isBye: boolean;
+}
+
+export interface PenaltyResult {
+  team1Penalties: number;
+  team2Penalties: number;
+  rounds: { team1: number; team2: number }[];
+}
+
+// ============= Draw System Types =============
+
+export type DrawPhase = "groups" | "knockout";
+
+export interface DrawState {
+  phase: DrawPhase;
+  isComplete: boolean;
+  currentPotIndex: number;
+  currentTeamIndex: number;
+  drawnTeams: { teamId: string; potId: string; groupId?: string; position?: number }[];
+  remainingTeams: { teamId: string; potId: string }[];
+  pots: DrawPot[];
+  groups?: Group[];
+}
+
+export interface DrawAnimation {
+  type: "pick_ball" | "reveal_team" | "assign_group" | "complete";
+  teamId?: string;
+  groupId?: string;
+  delay: number;
+}
+
+// ============= Competition State =============
+
+export interface CompetitionState {
+  config: CompetitionConfig;
+  phase: "setup" | "draw" | "qualifying" | "groups" | "knockout" | "complete";
+  
+  // For navigation - allows viewing previous phases
+  viewingPhase?: "groups" | "knockout";
+  
+  // Phase data
+  drawState?: DrawState;
+  groups?: Group[];
+  qualifyingMatches?: KnockoutMatch[];
+  qualifyingSeries?: KnockoutSeries[];
+  knockoutMatches?: KnockoutMatch[];
+  knockoutSeries?: KnockoutSeries[];
+  
+  // Qualified teams for next phase
+  qualifiedFromQualifying?: string[];
+  qualifiedFromGroups?: string[];
+  thirdPlaceRanking?: ThirdPlaceTeam[];
+  
+  // Champion
+  championId?: string | null;
+}
+
+// ============= Helper Functions =============
+
+export const getCompetitionTypeName = (type: CompetitionType): string => {
+  const names: Record<CompetitionType, string> = {
+    league: "Liga",
+    league_playoffs: "Liga + Playoffs",
+    knockout: "Eliminatoria Directa",
+    groups_knockout: "Grupos + Eliminatoria",
+    qualifying_groups_knockout: "Fase Previa + Grupos + Eliminatoria",
   };
-
-  const handlePlayGroupMatch = (matchId: string, groupId: string) => {
-    if (!competitionState?.groups) return;
-    
-    const group = competitionState.groups.find(g => g.id === groupId);
-    if (!group) return;
-    
-    const match = group.matches.find(m => m.id === matchId);
-    if (!match) return;
-    
-    const groupIndex = competitionState.groups.findIndex(g => g.id === groupId);
-    
-    setSelectedMatch(match);
-    setSelectedGroupId(groupId);
-    setSelectedGroupName(`Grupo ${getGroupLetter(groupIndex)}`);
-  };
-
-  const handleSimulateMatch = (matchId: string): GroupMatchResult | null => {
-    return simulateGroupMatch(matchId);
-  };
-
-  const handleConfirmMatch = (matchId: string, result: GroupMatchResult) => {
-    confirmGroupMatchResult(matchId, result);
-    setSelectedMatch(null);
-    setSelectedGroupId("");
-  };
-
-  const handleCloseSimulator = () => {
-    setSelectedMatch(null);
-    setSelectedGroupId("");
-  };
-
-  // Knockout match handlers
-  const handlePlayKnockoutMatch = (matchId: string, seriesId: string) => {
-    if (!competitionState?.knockoutMatches || !competitionState?.knockoutSeries) return;
-    
-    const match = competitionState.knockoutMatches.find(m => m.id === matchId);
-    const series = competitionState.knockoutSeries.find(s => s.id === seriesId);
-    
-    if (match && series) {
-      setSelectedKnockoutMatch(match);
-      setSelectedKnockoutSeries(series);
-    }
-  };
-
-  const handleSimulateKnockoutMatch = (matchId: string): KnockoutMatchResult | null => {
-    return simulateKnockoutMatch(matchId);
-  };
-
-  const handleConfirmKnockoutMatch = (matchId: string, result: KnockoutMatchResult) => {
-    confirmKnockoutMatchResult(matchId, result);
-    setSelectedKnockoutMatch(null);
-    setSelectedKnockoutSeries(null);
-  };
-
-  const handleCloseKnockoutSimulator = () => {
-    setSelectedKnockoutMatch(null);
-    setSelectedKnockoutSeries(null);
-  };
-
-  // Determine match format and leg info for knockout
-  const getKnockoutMatchFormat = () => {
-    if (!competitionState?.config.knockoutConfig) return "single";
-    const format = selectedKnockoutMatch?.round === "final" 
-      ? competitionState.config.knockoutConfig.finalFormat 
-      : competitionState.config.knockoutConfig.matchFormat;
-    return format;
-  };
-
-  const isSecondLeg = selectedKnockoutMatch?.leg === 2;
-  const leg1Result = isSecondLeg && selectedKnockoutSeries
-    ? {
-        team1Goals: selectedKnockoutSeries.team2Aggregate || 0,
-        team2Goals: selectedKnockoutSeries.team1Aggregate || 0,
-      }
-    : null;
-
-  // Get current phase name
-  const getPhaseLabel = (phase: string) => {
-    const labels: Record<string, string> = {
-      setup: "Configuración",
-      draw: "Sorteo",
-      qualifying: "Fase Previa",
-      groups: "Fase de Grupos",
-      knockout: "Eliminatorias",
-      complete: "Finalizado",
-    };
-    return labels[phase] || phase;
-  };
-
-  // Show landing if no competition
-  if (!competitionState) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-background via-background to-secondary/20">
-        {/* Hero Section */}
-        <div className="container mx-auto px-4 py-12 md:py-20">
-          <div className="max-w-4xl mx-auto text-center space-y-8">
-            {/* Logo/Icon */}
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-primary/70 shadow-lg shadow-primary/25 animate-pulse-subtle">
-              <Trophy className="w-10 h-10 text-primary-foreground" />
-            </div>
-            
-            <div className="space-y-4">
-              <h1 className="text-5xl md:text-7xl font-display font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text">
-                Simulador de Torneos
-              </h1>
-              <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-                Crea y simula cualquier formato de competición con el sistema de dados. 
-                Mundiales, Champions, Copas nacionales y más.
-              </p>
-            </div>
-
-            {/* Main Actions */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              <CompetitionConfigDialog 
-                onCreateCompetition={handleCreateCompetition}
-                teamLevels={teamLevels}
-              />
-              
-              <CompetitionSaveLoad
-                currentName=""
-                currentPhase=""
-                type="competition"
-                onSave={(name) => saveCompetition(name)}
-                onLoad={(data) => loadCompetition(data)}
-              />
-            </div>
-          </div>
-
-          {/* Feature Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-20 max-w-5xl mx-auto">
-            <Card className="group relative overflow-hidden border-0 bg-card/80 backdrop-blur shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent" />
-              <CardContent className="pt-8 pb-6 text-center space-y-4 relative">
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25 group-hover:scale-110 transition-transform duration-300">
-                  <Globe className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="font-display text-xl font-bold">Fase de Grupos</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Grupos de 4 equipos con tablas de posiciones y clasificación automática.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="group relative overflow-hidden border-0 bg-card/80 backdrop-blur shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent" />
-              <CardContent className="pt-8 pb-6 text-center space-y-4 relative">
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25 group-hover:scale-110 transition-transform duration-300">
-                  <Users className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="font-display text-xl font-bold">Sorteo Interactivo</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Sorteo visual paso a paso con animaciones. Bombos configurables por nivel.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="group relative overflow-hidden border-0 bg-card/80 backdrop-blur shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent" />
-              <CardContent className="pt-8 pb-6 text-center space-y-4 relative">
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/25 group-hover:scale-110 transition-transform duration-300">
-                  <Crown className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="font-display text-xl font-bold">Eliminatorias</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Bracket automático con partidos de ida/vuelta o eliminación directa.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Background decoration */}
-        <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
-          <div className="absolute top-1/4 -left-32 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 -right-32 w-64 h-64 bg-accent/5 rounded-full blur-3xl" />
-        </div>
-      </div>
-    );
-  }
-
-  // Show competition view
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/10">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-lg">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm">
-              <Trophy className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <span className="font-display text-lg font-bold">{competitionState.config.name}</span>
-              <span className="hidden sm:inline text-sm text-muted-foreground ml-2">
-                • {getPhaseLabel(competitionState.phase)}
-              </span>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={resetCompetition}
-            >
-              <Home className="w-4 h-4" />
-              <span className="hidden sm:inline">Volver al inicio</span>
-            </Button>
-            <CompetitionSaveLoad
-              currentName={competitionState.config.name}
-              currentPhase={getPhaseLabel(competitionState.phase)}
-              type="competition"
-              onSave={(name) => saveCompetition(name)}
-              onLoad={(data) => loadCompetition(data)}
-            />
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
-        <CompetitionView
-          competitionState={competitionState}
-          getTeamById={getTeamById}
-          onDrawStep={executeDrawStep}
-          onCompleteDraw={completeDraw}
-          onPlayGroupMatch={handlePlayGroupMatch}
-          onSimulateGroupMatchday={simulateGroupMatchday}
-          isGroupStageComplete={isGroupStageComplete}
-          onAdvanceToKnockout={advanceToKnockout}
-          onPlayKnockoutMatch={handlePlayKnockoutMatch}
-          onGoToPhase={goToPhase}
-          onReset={resetCompetition}
-        />
-      </main>
-
-      {/* Group Match Simulator Dialog */}
-      <GroupMatchSimulator
-        match={selectedMatch}
-        groupName={selectedGroupName}
-        getTeamById={getTeamById}
-        onSimulate={handleSimulateMatch}
-        onConfirm={handleConfirmMatch}
-        onClose={handleCloseSimulator}
-      />
-
-      {/* Knockout Match Simulator Dialog */}
-      <KnockoutMatchSimulator
-        match={selectedKnockoutMatch}
-        series={selectedKnockoutSeries}
-        roundName={selectedKnockoutMatch ? getKnockoutRoundName(selectedKnockoutMatch.round) : ""}
-        getTeamById={getTeamById}
-        onSimulate={handleSimulateKnockoutMatch}
-        onConfirm={handleConfirmKnockoutMatch}
-        onClose={handleCloseKnockoutSimulator}
-        matchFormat={getKnockoutMatchFormat()}
-        isSecondLeg={isSecondLeg}
-        leg1Result={leg1Result}
-      />
-
-      {/* Pitch Pattern Background */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.02] pitch-pattern -z-10" />
-    </div>
-  );
+  return names[type];
 };
 
-export default Competition;
+export const getKnockoutRoundName = (round: KnockoutRound): string => {
+  const names: Record<KnockoutRound, string> = {
+    preliminary_1: "Fase Previa 1",
+    preliminary_2: "Fase Previa 2", 
+    preliminary_3: "Fase Previa 3",
+    round_of_64: "64avos de Final",
+    round_of_32: "32avos de Final",
+    round_of_16: "Octavos de Final",
+    quarterfinals: "Cuartos de Final",
+    semifinals: "Semifinales",
+    final: "Final",
+  };
+  return names[round];
+};
+
+export const getMatchFormatName = (format: MatchFormat): string => {
+  const names: Record<MatchFormat, string> = {
+    single: "Solo ida",
+    double: "Ida y vuelta",
+    neutral: "Partido único (neutral)",
+  };
+  return names[format];
+};
+
+export const getQualificationRuleName = (rule: QualificationRule): string => {
+  const names: Record<QualificationRule, string> = {
+    first_only: "Solo primeros de grupo",
+    first_second: "1° y 2° de cada grupo",
+    first_second_best_thirds: "1°, 2° y mejores terceros",
+  };
+  return names[rule];
+};
+
+// Calculate number of teams needed for knockout based on qualified teams
+export const calculateKnockoutTeams = (
+  numGroups: number, 
+  rule: QualificationRule, 
+  bestThirds?: number
+): number => {
+  switch (rule) {
+    case "first_only":
+      return numGroups;
+    case "first_second":
+      return numGroups * 2;
+    case "first_second_best_thirds":
+      return numGroups * 2 + (bestThirds || 0);
+  }
+};
+
+// Get next power of 2 for bracket size
+export const getNextPowerOf2 = (n: number): number => {
+  let power = 1;
+  while (power < n) power *= 2;
+  return power;
+};
+
+// Calculate number of byes needed
+export const calculateByes = (totalTeams: number): number => {
+  const bracketSize = getNextPowerOf2(totalTeams);
+  return bracketSize - totalTeams;
+};
+
+// Generate group letter from index
+export const getGroupLetter = (index: number): string => {
+  return String.fromCharCode(65 + index); // A, B, C, ...
+};
+
+// Validate team count for groups (must be multiple of 4)
+export const isValidGroupsTeamCount = (numTeams: number): boolean => {
+  return numTeams >= 4 && numTeams % 4 === 0;
+};
+
+// Validate team count for knockout (must be even, ideally power of 2)
+export const isValidKnockoutTeamCount = (numTeams: number): boolean => {
+  return numTeams >= 2 && numTeams % 2 === 0;
+};
+
+// Check if number is power of 2
+export const isPowerOf2 = (n: number): boolean => {
+  return n > 0 && (n & (n - 1)) === 0;
+};
