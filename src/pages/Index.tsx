@@ -88,7 +88,7 @@ const Index = () => {
       />
       
       {/* Enhanced Progress Bar */}
-      <div className="bg-card/50 backdrop-blur-sm border-b sticky top-0 z-40">
+      <div className="bg-card/50 backdrop-blur-sm border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between text-sm mb-2">
             <div className="flex items-center gap-3">
