@@ -772,8 +772,20 @@ export const useCompetitionState = () => {
         finalAwayGoals = awayGoals2;
       }
       // else: keep first roll result (already the default)
+
+      // TEMP DEBUG - remove after diagnosing
+      console.log("[DEBUG v2-bestresult-fix]", {
+        strongerIsHome,
+        roll1: { homeGoals1, awayGoals1 },
+        roll2: { homeGoals2, awayGoals2 },
+        strongerDiff1,
+        strongerDiff2,
+        kept: strongerDiff2 > strongerDiff1 ? "roll2" : "roll1",
+        finalHomeGoals,
+        finalAwayGoals,
+      });
     }
-    
+
     return {
       homeGoals: finalHomeGoals,
       awayGoals: finalAwayGoals,
