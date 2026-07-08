@@ -758,10 +758,20 @@ export const useCompetitionState = () => {
       const homeRoll2 = rollDie();
       const awayRoll2 = rollDie();
       secondRoll = { home: homeRoll2, away: awayRoll2 };
-      
-      // Use second roll result as final
-      finalHomeGoals = dieToGoals(homeRoll2);
-      finalAwayGoals = dieToGoals(awayRoll2);
+
+      const homeGoals2 = dieToGoals(homeRoll2);
+      const awayGoals2 = dieToGoals(awayRoll2);
+
+      // Keep whichever roll is best for the stronger team (win > draw > loss),
+      // not simply the second roll
+      const strongerDiff1 = strongerIsHome ? homeGoals1 - awayGoals1 : awayGoals1 - homeGoals1;
+      const strongerDiff2 = strongerIsHome ? homeGoals2 - awayGoals2 : awayGoals2 - homeGoals2;
+
+      if (strongerDiff2 > strongerDiff1) {
+        finalHomeGoals = homeGoals2;
+        finalAwayGoals = awayGoals2;
+      }
+      // else: keep first roll result (already the default)
     }
     
     return {
@@ -1243,8 +1253,20 @@ export const useCompetitionState = () => {
       const team1Roll2 = rollDie();
       const team2Roll2 = rollDie();
       secondRoll = { team1: team1Roll2, team2: team2Roll2 };
-      finalTeam1Goals = dieToGoals(team1Roll2);
-      finalTeam2Goals = dieToGoals(team2Roll2);
+
+      const team1Goals2 = dieToGoals(team1Roll2);
+      const team2Goals2 = dieToGoals(team2Roll2);
+
+      // Keep whichever roll is best for the stronger team (win > draw > loss),
+      // not simply the second roll
+      const strongerDiff1 = strongerIsTeam1 ? team1Goals1 - team2Goals1 : team2Goals1 - team1Goals1;
+      const strongerDiff2 = strongerIsTeam1 ? team1Goals2 - team2Goals2 : team2Goals2 - team1Goals2;
+
+      if (strongerDiff2 > strongerDiff1) {
+        finalTeam1Goals = team1Goals2;
+        finalTeam2Goals = team2Goals2;
+      }
+      // else: keep first roll result (already the default)
     }
     
     // Check if we need penalties (for single leg or second leg with tied aggregate)
