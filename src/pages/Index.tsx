@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useGameState } from "@/hooks/useGameState";
+import { useLocation } from "react-router-dom";
+import { useGameState, ExternalLigaInit } from "@/hooks/useGameState";
 import { Header } from "@/components/Header";
 import { FixtureView } from "@/components/FixtureView";
 import { StandingsTable } from "@/components/StandingsTable";
@@ -11,8 +12,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, Trophy, Crown, BarChart3 } from "lucide-react";
 
 const Index = () => {
-  const { 
-    matches, 
+  const location = useLocation();
+  // When arriving from the universal competition config dialog ("/" ->
+  // CompetitionConfigDialog -> navigate("/liga", { state })), this carries
+  // the full league configuration so the game starts from it directly
+  // instead of the hardcoded default championship or a stale autosave.
+  const externalInit = (location.state as ExternalLigaInit | undefined)?.tournamentConfig
+    ? (location.state as ExternalLigaInit)
+    : undefined;
+
+  const {
+    matches,
     standings,
     teams,
     teamLevels,
@@ -40,7 +50,7 @@ const Index = () => {
     resetTeamNames,
     saveGame,
     loadGame,
-  } = useGameState();
+  } = useGameState(externalInit);
   
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [selectedPlayoffMatch, setSelectedPlayoffMatch] = useState<PlayoffMatch | null>(null);
