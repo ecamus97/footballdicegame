@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { Match, TeamStanding, MatchResult, Team, TournamentConfig, TournamentFormat, InternationalCup, PlayoffMatch, PlayoffSeries, PlayoffRound } from "@/types/game";
 import { teams as defaultTeams } from "@/data/teams";
+import { rollDie, dieToGoals, needsSecondRoll, pickBetterRollForStrongerTeam } from "@/lib/diceMatch";
 
 const STORAGE_KEY = "campeonato-chileno-2026";
 
@@ -269,58 +270,30 @@ export const useGameState = () => {
     return undefined;
   }, [teamLevels, teamNames]);
 
-  // Roll a single die (1-6)
-  const rollDie = useCallback((): number => {
-    return Math.floor(Math.random() * 6) + 1;
-  }, []);
-  
-  // Convert die value to goals
-  const dieToGoals = useCallback((die: number): number => {
-    return die - 1;
-  }, []);
-  
-  // Check if second roll is needed
-  const needsSecondRoll = useCallback((
-    homeTeam: Team,
-    awayTeam: Team,
-    homeGoals: number,
-    awayGoals: number
-  ): boolean => {
-    const levelDiff = Math.abs(homeTeam.level - awayTeam.level);
-    const strongerTeam = homeTeam.level < awayTeam.level ? "home" : "away";
-    const strongerWins = strongerTeam === "home" 
-      ? homeGoals > awayGoals 
-      : awayGoals > homeGoals;
-    
-    if (levelDiff === 0) return false;
-    
-    if (levelDiff === 1) {
-      if (strongerTeam === "away") return false;
-      return !strongerWins;
-    }
-    
-    return !strongerWins;
-  }, []);
-  
   // Internal function to simulate and get result for a match (without confirmation)
   const getMatchSimulationResult = useCallback((match: Match): MatchResult | null => {
     if (match.played) return null;
-    
+
     // Skip bye matches (one team is null)
     if (!match.homeTeamId || !match.awayTeamId) return null;
-    
+
     const homeTeam = getTeamById(match.homeTeamId);
     const awayTeam = getTeamById(match.awayTeamId);
-    
+
     if (!homeTeam || !awayTeam) return null;
-    
+
     const firstHomeRoll = rollDie();
     const firstAwayRoll = rollDie();
     const firstHomeGoals = dieToGoals(firstHomeRoll);
     const firstAwayGoals = dieToGoals(firstAwayRoll);
-    
-    const requiresSecond = needsSecondRoll(homeTeam, awayTeam, firstHomeGoals, firstAwayGoals);
-    
+
+    const requiresSecond = needsSecondRoll({
+      team1Level: homeTeam.level,
+      team2Level: awayTeam.level,
+      team1Goals: firstHomeGoals,
+      team2Goals: firstAwayGoals,
+    });
+
     let finalHomeGoals = firstHomeGoals;
     let finalAwayGoals = firstAwayGoals;
     let secondRoll: { home: number; away: number } | undefined;
@@ -334,15 +307,14 @@ export const useGameState = () => {
 
       // Keep whichever roll is best for the stronger team (win > draw > loss),
       // not simply the second roll
-      const strongerIsHome = homeTeam.level < awayTeam.level;
-      const strongerDiff1 = strongerIsHome ? firstHomeGoals - firstAwayGoals : firstAwayGoals - firstHomeGoals;
-      const strongerDiff2 = strongerIsHome ? secondHomeGoals - secondAwayGoals : secondAwayGoals - secondHomeGoals;
-
-      if (strongerDiff2 > strongerDiff1) {
-        finalHomeGoals = secondHomeGoals;
-        finalAwayGoals = secondAwayGoals;
-      }
-      // else: keep first roll result (already the default)
+      const best = pickBetterRollForStrongerTeam(
+        homeTeam.level,
+        awayTeam.level,
+        { team1Goals: firstHomeGoals, team2Goals: firstAwayGoals },
+        { team1Goals: secondHomeGoals, team2Goals: secondAwayGoals }
+      );
+      finalHomeGoals = best.team1Goals;
+      finalAwayGoals = best.team2Goals;
     }
 
     return {
@@ -606,41 +578,29 @@ export const useGameState = () => {
   }, [tournamentConfig.playoffsFormat]);
 
   // Simulate playoff match
+  // NOTE: currently unused - PlayoffMatchSimulator.tsx rolls and applies the
+  // rules itself rather than calling this. Kept for API parity with
+  // simulateMatch/getMatchSimulationResult in case a future caller needs it.
   const simulatePlayoffMatch = useCallback((matchId: string): MatchResult | null => {
     const match = playoffMatches.find(m => m.id === matchId);
     if (!match || match.played || !match.team1Id || !match.team2Id) return null;
-    
+
     const team1 = getTeamById(match.team1Id)!;
     const team2 = getTeamById(match.team2Id)!;
-    
-    // In neutral venue: no home advantage, but level differences still apply
-    // We keep real levels, but for needsSecondRoll we treat it as if both were same level for home advantage
-    
+
     const firstTeam1Roll = rollDie();
     const firstTeam2Roll = rollDie();
     const firstTeam1Goals = dieToGoals(firstTeam1Roll);
     const firstTeam2Goals = dieToGoals(firstTeam2Roll);
-    
-    // In neutral venue, no second roll (no home advantage to apply)
-    // But level difference still matters for team with better level
-    let requiresSecond = false;
-    if (!match.isNeutralVenue) {
-      requiresSecond = needsSecondRoll(team1, team2, firstTeam1Goals, firstTeam2Goals);
-    } else {
-      // In neutral venue: the team with better level (lower number) gets advantage
-      // If tied or the better team is already winning/drawing, no second roll
-      // If the worse team is winning, the better team gets a second chance
-      if (team1.level !== team2.level) {
-        const betterTeam = team1.level < team2.level ? 'team1' : 'team2';
-        const betterTeamWinning = betterTeam === 'team1' ? firstTeam1Goals > firstTeam2Goals : firstTeam2Goals > firstTeam1Goals;
-        const tied = firstTeam1Goals === firstTeam2Goals;
-        if (!betterTeamWinning && !tied) {
-          // Better level team is losing, they get a second chance
-          requiresSecond = true;
-        }
-      }
-    }
-    
+
+    const requiresSecond = needsSecondRoll({
+      team1Level: team1.level,
+      team2Level: team2.level,
+      team1Goals: firstTeam1Goals,
+      team2Goals: firstTeam2Goals,
+      isNeutral: match.isNeutralVenue,
+    });
+
     let finalTeam1Goals = firstTeam1Goals;
     let finalTeam2Goals = firstTeam2Goals;
     let secondRoll: { home: number; away: number } | undefined;
@@ -654,15 +614,14 @@ export const useGameState = () => {
 
       // Keep whichever roll is best for the stronger team (win > draw > loss),
       // not simply the second roll
-      const strongerIsTeam1 = team1.level < team2.level;
-      const strongerDiff1 = strongerIsTeam1 ? firstTeam1Goals - firstTeam2Goals : firstTeam2Goals - firstTeam1Goals;
-      const strongerDiff2 = strongerIsTeam1 ? secondTeam1Goals - secondTeam2Goals : secondTeam2Goals - secondTeam1Goals;
-
-      if (strongerDiff2 > strongerDiff1) {
-        finalTeam1Goals = secondTeam1Goals;
-        finalTeam2Goals = secondTeam2Goals;
-      }
-      // else: keep first roll result (already the default)
+      const best = pickBetterRollForStrongerTeam(
+        team1.level,
+        team2.level,
+        { team1Goals: firstTeam1Goals, team2Goals: firstTeam2Goals },
+        { team1Goals: secondTeam1Goals, team2Goals: secondTeam2Goals }
+      );
+      finalTeam1Goals = best.team1Goals;
+      finalTeam2Goals = best.team2Goals;
     }
     
     return {
