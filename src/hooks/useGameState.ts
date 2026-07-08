@@ -163,14 +163,67 @@ const getDefaultTeamLevels = (): Record<string, 1 | 2 | 3 | 4> => {
   return levels;
 };
 
+// Auto-save current session (separate from the named "liga-saves" slots) so a
+// page refresh keeps the current tournament instead of starting a fresh one.
+const AUTOSAVE_KEY = "footballdicegame_liga_autosave";
+
+interface LigaAutosaveData {
+  matches: Match[];
+  standings: [string, TeamStanding][];
+  teamLevels: Record<string, 1 | 2 | 3 | 4>;
+  teamNames: Record<string, { name: string; shortName: string }>;
+  tournamentConfig: TournamentConfig;
+  playoffMatches: PlayoffMatch[];
+  playoffSeries: PlayoffSeries[];
+}
+
+const loadLigaAutosave = (): LigaAutosaveData | null => {
+  try {
+    const raw = localStorage.getItem(AUTOSAVE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as LigaAutosaveData;
+  } catch {
+    return null;
+  }
+};
+
 export const useGameState = () => {
-  const [tournamentConfig, setTournamentConfig] = useState<TournamentConfig>(() => getDefaultTournamentConfig());
-  const [teamLevels, setTeamLevels] = useState<Record<string, 1 | 2 | 3 | 4>>(() => getDefaultTeamLevels());
-  const [teamNames, setTeamNames] = useState<Record<string, { name: string; shortName: string }>>(() => getDefaultTeamNames());
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [standings, setStandings] = useState<Map<string, TeamStanding>>(() => new Map());
-  const [playoffMatches, setPlayoffMatches] = useState<PlayoffMatch[]>([]);
-  const [playoffSeries, setPlayoffSeries] = useState<PlayoffSeries[]>([]);
+  const ligaAutosave = loadLigaAutosave();
+
+  const [tournamentConfig, setTournamentConfig] = useState<TournamentConfig>(
+    () => ligaAutosave?.tournamentConfig ?? getDefaultTournamentConfig()
+  );
+  const [teamLevels, setTeamLevels] = useState<Record<string, 1 | 2 | 3 | 4>>(
+    () => ligaAutosave?.teamLevels ?? getDefaultTeamLevels()
+  );
+  const [teamNames, setTeamNames] = useState<Record<string, { name: string; shortName: string }>>(
+    () => ligaAutosave?.teamNames ?? getDefaultTeamNames()
+  );
+  const [matches, setMatches] = useState<Match[]>(() => ligaAutosave?.matches ?? []);
+  const [standings, setStandings] = useState<Map<string, TeamStanding>>(
+    () => new Map(ligaAutosave?.standings ?? [])
+  );
+  const [playoffMatches, setPlayoffMatches] = useState<PlayoffMatch[]>(() => ligaAutosave?.playoffMatches ?? []);
+  const [playoffSeries, setPlayoffSeries] = useState<PlayoffSeries[]>(() => ligaAutosave?.playoffSeries ?? []);
+
+  // Keep the autosave in sync with the current session
+  useEffect(() => {
+    if (matches.length === 0 && playoffMatches.length === 0) return;
+    try {
+      const data: LigaAutosaveData = {
+        matches,
+        standings: Array.from(standings.entries()),
+        teamLevels,
+        teamNames,
+        tournamentConfig,
+        playoffMatches,
+        playoffSeries,
+      };
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
+    } catch {
+      // Ignore storage errors (e.g. quota exceeded or private browsing)
+    }
+  }, [matches, standings, teamLevels, teamNames, tournamentConfig, playoffMatches, playoffSeries]);
 
   // Get participating teams with current levels and names
   const teams = useMemo(() => {
