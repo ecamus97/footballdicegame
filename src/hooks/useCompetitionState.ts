@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { 
   CompetitionConfig, 
   CompetitionState, 
@@ -492,10 +492,53 @@ const initializeDrawState = (
 
 // ============= Main Hook =============
 
+// Auto-save current session (not the named saves) so a page refresh keeps you
+// where you were instead of dropping back to the landing screen.
+const AUTOSAVE_KEY = "footballdicegame_autosave";
+
+interface AutosaveData {
+  competitionState: CompetitionState;
+  customTeamsData: CustomTeam[];
+  teamLevels: Record<string, 1 | 2 | 3 | 4>;
+}
+
+const loadAutosave = (): AutosaveData | null => {
+  try {
+    const raw = localStorage.getItem(AUTOSAVE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as AutosaveData;
+  } catch {
+    return null;
+  }
+};
+
 export const useCompetitionState = () => {
-  const [competitionState, setCompetitionState] = useState<CompetitionState | null>(null);
-  const [teamLevels, setTeamLevels] = useState<Record<string, 1 | 2 | 3 | 4>>({});
-  const [customTeamsData, setCustomTeamsData] = useState<CustomTeam[]>([]);
+  const [competitionState, setCompetitionState] = useState<CompetitionState | null>(
+    () => loadAutosave()?.competitionState ?? null
+  );
+  const [teamLevels, setTeamLevels] = useState<Record<string, 1 | 2 | 3 | 4>>(
+    () => loadAutosave()?.teamLevels ?? {}
+  );
+  const [customTeamsData, setCustomTeamsData] = useState<CustomTeam[]>(
+    () => loadAutosave()?.customTeamsData ?? []
+  );
+
+  // Keep the autosave in sync with the current session; clear it when there's
+  // no active competition (e.g. after "Volver al inicio" or "Reiniciar").
+  useEffect(() => {
+    try {
+      if (competitionState) {
+        localStorage.setItem(
+          AUTOSAVE_KEY,
+          JSON.stringify({ competitionState, customTeamsData, teamLevels })
+        );
+      } else {
+        localStorage.removeItem(AUTOSAVE_KEY);
+      }
+    } catch {
+      // Ignore storage errors (e.g. quota exceeded or private browsing)
+    }
+  }, [competitionState, customTeamsData, teamLevels]);
 
   // Get team by ID from custom teams data
   const getTeamById = useCallback((id: string | null): Team | undefined => {
@@ -772,18 +815,6 @@ export const useCompetitionState = () => {
         finalAwayGoals = awayGoals2;
       }
       // else: keep first roll result (already the default)
-
-      // TEMP DEBUG - remove after diagnosing
-      console.log("[DEBUG v2-bestresult-fix]", {
-        strongerIsHome,
-        roll1: { homeGoals1, awayGoals1 },
-        roll2: { homeGoals2, awayGoals2 },
-        strongerDiff1,
-        strongerDiff2,
-        kept: strongerDiff2 > strongerDiff1 ? "roll2" : "roll1",
-        finalHomeGoals,
-        finalAwayGoals,
-      });
     }
 
     return {
