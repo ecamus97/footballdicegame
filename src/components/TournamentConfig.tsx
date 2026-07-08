@@ -257,8 +257,9 @@ export const TournamentConfig = ({
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary-foreground/10">
-          <Settings2 className="w-5 h-5" />
+        <Button variant="outline" size="sm" className="gap-2">
+          <Settings2 className="w-4 h-4" />
+          <span className="hidden sm:inline">Configurar</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
