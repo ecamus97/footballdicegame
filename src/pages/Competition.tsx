@@ -8,11 +8,13 @@ import { GroupMatchSimulator, GroupMatchResult } from "@/components/GroupMatchSi
 import { KnockoutMatchSimulator, KnockoutMatchResult } from "@/components/KnockoutMatchSimulator";
 import { CompetitionConfig, GroupMatch, KnockoutMatch, KnockoutSeries, getGroupLetter, getKnockoutRoundName } from "@/types/competition";
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  Trophy, 
-  Globe, 
-  Users, 
+import { Button } from "@/components/ui/button";
+import {
+  Trophy,
+  Globe,
+  Users,
   Crown,
+  Home,
 } from "lucide-react";
 
 const Competition = () => {
@@ -260,13 +262,24 @@ const Competition = () => {
             </div>
           </div>
           
-          <CompetitionSaveLoad
-            currentName={competitionState.config.name}
-            currentPhase={getPhaseLabel(competitionState.phase)}
-            type="competition"
-            onSave={(name) => saveCompetition(name)}
-            onLoad={(data) => loadCompetition(data)}
-          />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={resetCompetition}
+            >
+              <Home className="w-4 h-4" />
+              <span className="hidden sm:inline">Volver al inicio</span>
+            </Button>
+            <CompetitionSaveLoad
+              currentName={competitionState.config.name}
+              currentPhase={getPhaseLabel(competitionState.phase)}
+              type="competition"
+              onSave={(name) => saveCompetition(name)}
+              onLoad={(data) => loadCompetition(data)}
+            />
+          </div>
         </div>
       </header>
 
