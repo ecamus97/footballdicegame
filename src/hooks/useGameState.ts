@@ -1,9 +1,18 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { Match, TeamStanding, MatchResult, Team, TournamentConfig, TournamentFormat, InternationalCup, PlayoffMatch, PlayoffSeries, PlayoffRound } from "@/types/game";
+import { CustomTeam } from "@/types/competition";
 import { teams as defaultTeams } from "@/data/teams";
 import { rollDie, dieToGoals, needsSecondRoll, pickBetterRollForStrongerTeam } from "@/lib/diceMatch";
 
 const STORAGE_KEY = "campeonato-chileno-2026";
+
+// Optional external initialization, used when a competition is created via
+// the universal config dialog and routed here (bypasses the default Chilean
+// championship and any autosave).
+export interface ExternalLigaInit {
+  tournamentConfig: TournamentConfig;
+  customTeams?: CustomTeam[];
+}
 
 interface SavedGameState {
   matches: Match[];
@@ -14,6 +23,7 @@ interface SavedGameState {
   playoffMatches: PlayoffMatch[];
   playoffSeries: PlayoffSeries[];
   savedAt: string;
+  customTeamsData?: CustomTeam[];
 }
 
 // Extended result type for playoffs (includes penalties)
@@ -176,6 +186,7 @@ interface LigaAutosaveData {
   tournamentConfig: TournamentConfig;
   playoffMatches: PlayoffMatch[];
   playoffSeries: PlayoffSeries[];
+  customTeamsData?: CustomTeam[];
 }
 
 const loadLigaAutosave = (): LigaAutosaveData | null => {
@@ -188,24 +199,38 @@ const loadLigaAutosave = (): LigaAutosaveData | null => {
   }
 };
 
-export const useGameState = () => {
-  const ligaAutosave = loadLigaAutosave();
+export const useGameState = (externalInit?: ExternalLigaInit) => {
+  const ligaAutosave = externalInit ? null : loadLigaAutosave();
+
+  const [customTeamsData, setCustomTeamsData] = useState<CustomTeam[]>(
+    () => externalInit?.customTeams ?? ligaAutosave?.customTeamsData ?? []
+  );
 
   const [tournamentConfig, setTournamentConfig] = useState<TournamentConfig>(
-    () => ligaAutosave?.tournamentConfig ?? getDefaultTournamentConfig()
+    () => externalInit?.tournamentConfig ?? ligaAutosave?.tournamentConfig ?? getDefaultTournamentConfig()
   );
-  const [teamLevels, setTeamLevels] = useState<Record<string, 1 | 2 | 3 | 4>>(
-    () => ligaAutosave?.teamLevels ?? getDefaultTeamLevels()
-  );
-  const [teamNames, setTeamNames] = useState<Record<string, { name: string; shortName: string }>>(
-    () => ligaAutosave?.teamNames ?? getDefaultTeamNames()
-  );
-  const [matches, setMatches] = useState<Match[]>(() => ligaAutosave?.matches ?? []);
+  const [teamLevels, setTeamLevels] = useState<Record<string, 1 | 2 | 3 | 4>>(() => {
+    if (externalInit) {
+      const levels = getDefaultTeamLevels();
+      for (const t of externalInit.customTeams ?? []) levels[t.id] = t.level;
+      return levels;
+    }
+    return ligaAutosave?.teamLevels ?? getDefaultTeamLevels();
+  });
+  const [teamNames, setTeamNames] = useState<Record<string, { name: string; shortName: string }>>(() => {
+    if (externalInit) {
+      const names = getDefaultTeamNames();
+      for (const t of externalInit.customTeams ?? []) names[t.id] = { name: t.name, shortName: t.shortName };
+      return names;
+    }
+    return ligaAutosave?.teamNames ?? getDefaultTeamNames();
+  });
+  const [matches, setMatches] = useState<Match[]>(() => (externalInit ? [] : ligaAutosave?.matches ?? []));
   const [standings, setStandings] = useState<Map<string, TeamStanding>>(
-    () => new Map(ligaAutosave?.standings ?? [])
+    () => new Map(externalInit ? [] : ligaAutosave?.standings ?? [])
   );
-  const [playoffMatches, setPlayoffMatches] = useState<PlayoffMatch[]>(() => ligaAutosave?.playoffMatches ?? []);
-  const [playoffSeries, setPlayoffSeries] = useState<PlayoffSeries[]>(() => ligaAutosave?.playoffSeries ?? []);
+  const [playoffMatches, setPlayoffMatches] = useState<PlayoffMatch[]>(() => (externalInit ? [] : ligaAutosave?.playoffMatches ?? []));
+  const [playoffSeries, setPlayoffSeries] = useState<PlayoffSeries[]>(() => (externalInit ? [] : ligaAutosave?.playoffSeries ?? []));
 
   // Keep the autosave in sync with the current session
   useEffect(() => {
@@ -219,16 +244,30 @@ export const useGameState = () => {
         tournamentConfig,
         playoffMatches,
         playoffSeries,
+        customTeamsData,
       };
       localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
     } catch {
       // Ignore storage errors (e.g. quota exceeded or private browsing)
     }
-  }, [matches, standings, teamLevels, teamNames, tournamentConfig, playoffMatches, playoffSeries]);
+  }, [matches, standings, teamLevels, teamNames, tournamentConfig, playoffMatches, playoffSeries, customTeamsData]);
+
+  // All base teams: the fixed roster plus any custom teams created via the
+  // universal competition config dialog.
+  const allBaseTeams = useMemo((): Team[] => {
+    if (customTeamsData.length === 0) return defaultTeams;
+    const customAsTeams: Team[] = customTeamsData.map(t => ({
+      id: t.id,
+      name: t.name,
+      shortName: t.shortName,
+      level: t.level,
+    }));
+    return [...defaultTeams, ...customAsTeams];
+  }, [customTeamsData]);
 
   // Get participating teams with current levels and names
   const teams = useMemo(() => {
-    return defaultTeams
+    return allBaseTeams
       .filter(team => tournamentConfig.participatingTeamIds.includes(team.id))
       .map(team => ({
         ...team,
@@ -236,17 +275,17 @@ export const useGameState = () => {
         shortName: teamNames[team.id]?.shortName || team.shortName,
         level: teamLevels[team.id] || team.level,
       }));
-  }, [teamLevels, teamNames, tournamentConfig.participatingTeamIds]);
+  }, [allBaseTeams, teamLevels, teamNames, tournamentConfig.participatingTeamIds]);
 
   // Get all available teams (for configuration)
   const allTeams = useMemo(() => {
-    return defaultTeams.map(team => ({
+    return allBaseTeams.map(team => ({
       ...team,
       name: teamNames[team.id]?.name || team.name,
       shortName: teamNames[team.id]?.shortName || team.shortName,
       level: teamLevels[team.id] || team.level,
     }));
-  }, [teamLevels, teamNames]);
+  }, [allBaseTeams, teamLevels, teamNames]);
 
   // Initialize tournament on first load or when config changes
   useEffect(() => {
@@ -254,21 +293,22 @@ export const useGameState = () => {
       setMatches(generateFixture(teams, tournamentConfig.format, tournamentConfig.allowOddTeams ?? false));
       setStandings(initializeStandings(teams));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // Get team by ID with current level and name
   const getTeamById = useCallback((id: string | null): Team | undefined => {
     if (!id) return undefined;
-    const team = defaultTeams.find(t => t.id === id);
+    const team = allBaseTeams.find(t => t.id === id);
     if (team) {
-      return { 
-        ...team, 
+      return {
+        ...team,
         name: teamNames[team.id]?.name || team.name,
         shortName: teamNames[team.id]?.shortName || team.shortName,
-        level: teamLevels[team.id] || team.level 
+        level: teamLevels[team.id] || team.level
       };
     }
     return undefined;
-  }, [teamLevels, teamNames]);
+  }, [allBaseTeams, teamLevels, teamNames]);
 
   // Internal function to simulate and get result for a match (without confirmation)
   const getMatchSimulationResult = useCallback((match: Match): MatchResult | null => {
@@ -915,7 +955,7 @@ export const useGameState = () => {
   
   // Reset tournament with current config
   const resetTournament = useCallback(() => {
-    const participatingTeams = defaultTeams
+    const participatingTeams = allBaseTeams
       .filter(team => tournamentConfig.participatingTeamIds.includes(team.id))
       .map(team => ({
         ...team,
@@ -925,7 +965,7 @@ export const useGameState = () => {
     setStandings(initializeStandings(participatingTeams));
     setPlayoffMatches([]);
     setPlayoffSeries([]);
-  }, [tournamentConfig, teamLevels]);
+  }, [allBaseTeams, tournamentConfig, teamLevels]);
 
   // Update tournament config
   const updateTournamentConfig = useCallback((config: Partial<TournamentConfig>) => {
@@ -935,7 +975,7 @@ export const useGameState = () => {
   // Apply config changes and reset tournament
   const applyConfigChanges = useCallback((newConfig?: TournamentConfig) => {
     const configToUse = newConfig || tournamentConfig;
-    const participatingTeams = defaultTeams
+    const participatingTeams = allBaseTeams
       .filter(team => configToUse.participatingTeamIds.includes(team.id))
       .map(team => ({
         ...team,
@@ -943,7 +983,7 @@ export const useGameState = () => {
       }));
     setMatches(generateFixture(participatingTeams, configToUse.format, configToUse.allowOddTeams ?? false));
     setStandings(initializeStandings(participatingTeams));
-  }, [tournamentConfig, teamLevels]);
+  }, [allBaseTeams, tournamentConfig, teamLevels]);
 
   // Update team level
   const updateTeamLevel = useCallback((teamId: string, level: 1 | 2 | 3 | 4) => {
@@ -982,16 +1022,17 @@ export const useGameState = () => {
       playoffMatches,
       playoffSeries,
       savedAt: new Date().toISOString(),
+      customTeamsData,
     };
-    
+
     // Convert Map to array for JSON serialization
     const serializable = {
       ...state,
       standings: Array.from(standings.entries()),
     };
-    
+
     return serializable;
-  }, [matches, standings, teamLevels, teamNames, tournamentConfig, playoffMatches, playoffSeries]);
+  }, [matches, standings, teamLevels, teamNames, tournamentConfig, playoffMatches, playoffSeries, customTeamsData]);
 
   // Load game from data object
   const loadGame = useCallback((data: any): boolean => {
@@ -1007,6 +1048,9 @@ export const useGameState = () => {
       
       // Restore team levels
       setTeamLevels(data.teamLevels);
+
+      // Restore custom teams (with fallback for old saves without them)
+      setCustomTeamsData(data.customTeamsData ?? []);
 
       // Restore team names (with fallback for old saves)
       if (data.teamNames) {
@@ -1065,5 +1109,7 @@ export const useGameState = () => {
     resetTeamNames,
     saveGame,
     loadGame,
+    customTeamsData,
+    setCustomTeamsData,
   };
 };
