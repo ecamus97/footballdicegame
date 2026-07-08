@@ -369,7 +369,7 @@ export const CompetitionConfigDialog = ({
           Nueva Competencia
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="max-w-4xl h-[85vh] max-h-[85vh] overflow-hidden flex flex-col p-0">
         {/* Header with gradient */}
         <div className="relative px-6 pt-6 pb-4 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b">
           <DialogHeader>
