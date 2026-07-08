@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { rollDie, dieToGoals, needsSecondRoll, pickBetterRollForStrongerTeam } from "@/lib/diceMatch";
 import { Dices, CheckCircle2, RefreshCw, Shield, Home, Plane, Flag, Trophy, Target } from "lucide-react";
 
 interface KnockoutMatchSimulatorProps {
@@ -96,28 +97,6 @@ export const KnockoutMatchSimulator = ({
     }
   }
 
-  const rollDie = (): number => Math.floor(Math.random() * 6) + 1;
-  const dieToGoals = (die: number): number => die - 1;
-
-  const needsSecondRoll = (team1Goals: number, team2Goals: number): boolean => {
-    if (levelDiff === 0) return false;
-    
-    const strongerWins = isStrongerTeam1 
-      ? team1Goals > team2Goals 
-      : team2Goals > team1Goals;
-    
-    if (isNeutral) {
-      return !strongerWins;
-    }
-    
-    if (levelDiff === 1) {
-      if (!isStrongerTeam1) return false;
-      return !strongerWins;
-    }
-    
-    return !strongerWins;
-  };
-
   const checkNeedsPenalties = (team1Goals: number, team2Goals: number): boolean => {
     const isSingleMatch = matchFormat === "single" || matchFormat === "neutral";
     
@@ -143,7 +122,13 @@ export const KnockoutMatchSimulator = ({
       const firstTeam1Goals = dieToGoals(firstTeam1Roll);
       const firstTeam2Goals = dieToGoals(firstTeam2Roll);
       
-      const requiresSecond = needsSecondRoll(firstTeam1Goals, firstTeam2Goals);
+      const requiresSecond = needsSecondRoll({
+        team1Level: team1.level,
+        team2Level: team2.level,
+        team1Goals: firstTeam1Goals,
+        team2Goals: firstTeam2Goals,
+        isNeutral,
+      });
       
       const newResult: KnockoutMatchResult = {
         team1Goals: firstTeam1Goals,
@@ -179,13 +164,14 @@ export const KnockoutMatchSimulator = ({
 
       // Keep whichever roll is best for the stronger team (win > draw > loss),
       // not simply the second roll
-      const firstTeam1Goals = result!.team1Goals;
-      const firstTeam2Goals = result!.team2Goals;
-      const strongerDiff1 = isStrongerTeam1 ? firstTeam1Goals - firstTeam2Goals : firstTeam2Goals - firstTeam1Goals;
-      const strongerDiff2 = isStrongerTeam1 ? secondTeam1Goals - secondTeam2Goals : secondTeam2Goals - secondTeam1Goals;
-
-      const finalTeam1Goals = strongerDiff2 > strongerDiff1 ? secondTeam1Goals : firstTeam1Goals;
-      const finalTeam2Goals = strongerDiff2 > strongerDiff1 ? secondTeam2Goals : firstTeam2Goals;
+      const best = pickBetterRollForStrongerTeam(
+        team1.level,
+        team2.level,
+        { team1Goals: result!.team1Goals, team2Goals: result!.team2Goals },
+        { team1Goals: secondTeam1Goals, team2Goals: secondTeam2Goals }
+      );
+      const finalTeam1Goals = best.team1Goals;
+      const finalTeam2Goals = best.team2Goals;
 
       const newResult: KnockoutMatchResult = {
         ...result!,
