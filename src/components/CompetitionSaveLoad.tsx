@@ -291,7 +291,7 @@ export const CompetitionSaveLoad = ({
       <DialogTrigger asChild>
         <Button variant={triggerVariant} size={triggerSize} className={cn("gap-2", triggerClassName)}>
           <Save className={triggerIconClassName} />
-          {showTriggerLabel && "Guardar / Cargar"}
+          {showTriggerLabel && <span className="hidden sm:inline">Guardar / Cargar</span>}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md">
