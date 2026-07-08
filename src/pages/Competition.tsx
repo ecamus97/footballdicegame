@@ -7,6 +7,7 @@ import { CompetitionSaveLoad } from "@/components/CompetitionSaveLoad";
 import { GroupMatchSimulator, GroupMatchResult } from "@/components/GroupMatchSimulator";
 import { KnockoutMatchSimulator, KnockoutMatchResult } from "@/components/KnockoutMatchSimulator";
 import { CompetitionConfig, GroupMatch, KnockoutMatch, KnockoutSeries, getGroupLetter, getKnockoutRoundName } from "@/types/competition";
+import { TournamentConfig as LegacyTournamentConfig } from "@/types/game";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,13 +51,39 @@ const Competition = () => {
   const [selectedKnockoutMatch, setSelectedKnockoutMatch] = useState<KnockoutMatch | null>(null);
   const [selectedKnockoutSeries, setSelectedKnockoutSeries] = useState<KnockoutSeries | null>(null);
 
+  // Translate the universal CompetitionConfig into the legacy Liga
+  // TournamentConfig, so the same initial dialog can fully configure a
+  // league (including playoffs, international cups and relegation/promotion)
+  // without needing the separate in-game "Configurar" dialog.
+  const buildLegacyTournamentConfig = (config: CompetitionConfig): LegacyTournamentConfig => ({
+    name: config.name,
+    format: config.leagueFormat === "single" ? "single" : "double",
+    participatingTeamIds: config.participatingTeamIds,
+    allowOddTeams: config.allowOddTeams ?? false,
+    relegationSpots: config.relegationSpots ?? 0,
+    playoffsEnabled: config.type === "league_playoffs",
+    playoffsFormat: config.type === "league_playoffs" ? (config.leaguePlayoffsFormat ?? "double") : "none",
+    playoffsTeams: config.leaguePlayoffsTeams ?? 4,
+    internationalCups: config.internationalCups ?? [],
+    promotionPlayoffEnabled: config.promotionPlayoffEnabled ?? false,
+    promotionPlayoffSpots: config.promotionPlayoffSpots ?? 0,
+  });
+
   const handleCreateCompetition = (config: CompetitionConfig) => {
-    // Redirect to liga page if league or league_playoffs type
+    // Redirect to liga page if league or league_playoffs type, carrying the
+    // full configuration so the Liga engine starts from it directly instead
+    // of the hardcoded default championship.
     if (config.type === "league" || config.type === "league_playoffs") {
-      navigate("/liga");
+      const tournamentConfig = buildLegacyTournamentConfig(config);
+      navigate("/liga", {
+        state: {
+          tournamentConfig,
+          customTeams: config.customTeams ?? [],
+        },
+      });
       return;
     }
-    
+
     // Set custom teams data before initializing
     if (config.customTeams) {
       setCustomTeamsData(config.customTeams);
