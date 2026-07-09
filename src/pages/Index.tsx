@@ -24,14 +24,11 @@ const Index = () => {
   const {
     matches,
     standings,
-    teams,
-    teamLevels,
-    teamNames,
     tournamentConfig,
     playoffMatches,
     playoffSeries,
     getTeamById,
-    simulateMatch, 
+    simulateMatch,
     confirmMatchResult,
     simulateMatchdays,
     getMatchesByMatchday,
@@ -42,12 +39,6 @@ const Index = () => {
     getSeriesForMatch,
     getLeg1Match,
     resetTournament,
-    updateTournamentConfig,
-    applyConfigChanges,
-    updateTeamLevel,
-    resetTeamLevels,
-    updateTeamName,
-    resetTeamNames,
     saveGame,
     loadGame,
   } = useGameState(externalInit);
@@ -72,31 +63,20 @@ const Index = () => {
   const playedMatches = matches.filter(m => m.played).length;
   const totalMatches = matches.length;
   const progress = totalMatches > 0 ? Math.round((playedMatches / totalMatches) * 100) : 0;
-  const hasPlayedMatches = playedMatches > 0;
   const showPlayoffs = tournamentConfig.playoffsEnabled && regularSeasonComplete;
   const isSingleLeg = tournamentConfig.playoffsFormat === "single";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <Header 
+      <Header
         onReset={resetTournament}
-        teams={teams}
-        teamLevels={teamLevels}
-        teamNames={teamNames}
         tournamentConfig={tournamentConfig}
-        onUpdateConfig={updateTournamentConfig}
-        onUpdateLevel={updateTeamLevel}
-        onResetLevels={resetTeamLevels}
-        onUpdateName={updateTeamName}
-        onResetNames={resetTeamNames}
-        onApplyChanges={applyConfigChanges}
-        hasPlayedMatches={hasPlayedMatches}
         onSave={saveGame}
         onLoad={loadGame}
         playedMatches={playedMatches}
         totalMatches={totalMatches}
       />
-      
+
       {/* Enhanced Progress Bar */}
       <div className="bg-card/50 backdrop-blur-sm border-b">
         <div className="container mx-auto px-4 py-4">
