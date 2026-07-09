@@ -20,42 +20,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { TournamentConfig } from "./TournamentConfig";
 import { CompetitionSaveLoad } from "./CompetitionSaveLoad";
-import { Team, TeamLevel, TournamentConfig as TournamentConfigType } from "@/types/game";
+import { TournamentConfig as TournamentConfigType } from "@/types/game";
 
 interface HeaderProps {
   onReset: () => void;
-  teams: Team[];
-  teamLevels: Record<string, TeamLevel>;
-  teamNames: Record<string, { name: string; shortName: string }>;
   tournamentConfig: TournamentConfigType;
-  onUpdateConfig: (config: Partial<TournamentConfigType>) => void;
-  onUpdateLevel: (teamId: string, level: TeamLevel) => void;
-  onResetLevels: () => void;
-  onUpdateName: (teamId: string, name: string, shortName: string) => void;
-  onResetNames: () => void;
-  onApplyChanges: (newConfig?: TournamentConfigType) => void;
-  hasPlayedMatches: boolean;
   onSave: () => any;
   onLoad: (data: any) => boolean;
   playedMatches: number;
   totalMatches: number;
 }
 
-export const Header = ({ 
+export const Header = ({
   onReset,
-  teams,
-  teamLevels,
-  teamNames,
   tournamentConfig,
-  onUpdateConfig,
-  onUpdateLevel,
-  onResetLevels,
-  onUpdateName,
-  onResetNames,
-  onApplyChanges,
-  hasPlayedMatches,
   onSave,
   onLoad,
   playedMatches,
@@ -148,19 +127,6 @@ export const Header = ({
                 </div>
               </DialogContent>
             </Dialog>
-
-            <TournamentConfig
-              config={tournamentConfig}
-              teamLevels={teamLevels}
-              teamNames={teamNames}
-              onUpdateConfig={onUpdateConfig}
-              onUpdateLevel={onUpdateLevel}
-              onResetLevels={onResetLevels}
-              onUpdateName={onUpdateName}
-              onResetNames={onResetNames}
-              onApplyChanges={onApplyChanges}
-              hasPlayedMatches={hasPlayedMatches}
-            />
 
             <CompetitionSaveLoad
               type="liga"
